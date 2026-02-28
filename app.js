@@ -542,18 +542,20 @@ function renderPrimaryChart(series) {
 
 function setupBarsChartControls(series, weeklyLoss, rolling28) {
   const metricSelect = document.getElementById("barsMetricSelect");
+  const displaySelect = document.getElementById("barsDisplaySelect");
   const rangeSelect = document.getElementById("barsRangeSelect");
 
   const update = () => {
-    renderBarsChart(series, weeklyLoss, rolling28, metricSelect.value, rangeSelect.value);
+    renderBarsChart(series, weeklyLoss, rolling28, metricSelect.value, rangeSelect.value, displaySelect.value);
   };
 
   metricSelect.addEventListener("change", update);
+  displaySelect.addEventListener("change", update);
   rangeSelect.addEventListener("change", update);
   update();
 }
 
-function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d") {
+function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d", displayKey = "bars") {
   const canvas = document.getElementById("barsChart");
   const hint = document.getElementById("barsChartHint");
   const latestEntry = getLatestValueEntry(series);
@@ -561,40 +563,87 @@ function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", ran
   const cutoff = latestEntry && windowDays ? addDays(latestEntry.date, -(windowDays - 1)) : null;
   const metricLabel = getBarsMetricLabel(metricKey);
   const rangeLabel = getBarsRangeLabel(rangeKey);
-  let entries = [];
+  const entries = buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff);
 
-  if (metricKey === "weekly") {
-    entries = weeklyLoss
-      .filter((entry) => !cutoff || entry.date >= cutoff)
-      .map((entry) => ({
-        ...entry,
-        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }));
-  } else if (metricKey === "rolling28") {
-    entries = rolling28
-      .filter((entry) => !cutoff || entry.date >= cutoff)
-      .map((entry) => ({
-        ...entry,
-        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }));
-  } else {
-    entries = series
-      .filter((entry) => Number.isFinite(entry.diff))
-      .filter((entry) => !cutoff || entry.date >= cutoff)
-      .map((entry) => ({
-        label: entry.isoDate,
-        shortLabel: formatShortDate(entry.date),
-        value: entry.diff,
-        date: entry.date,
-        color: entry.diff > 0 ? COLORS.gain : entry.diff < 0 ? COLORS.loss : COLORS.neutral
-      }));
+  hint.textContent = `${metricLabel} sur ${rangeLabel.toLowerCase()} en mode ${displayKey === "market" ? "cours" : "barres"}.`;
+
+  if (displayKey === "market") {
+    renderMarketChart(canvas, entries, metricKey);
+    return;
   }
-
-  hint.textContent = `${metricLabel} sur ${rangeLabel.toLowerCase()}.`;
 
   drawBarChart(canvas, entries, {
     yFormatter: (value) => `${formatSignedWeight(value)} kg`,
     xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel || item.label, index, items.length),
+    minHeight: 220
+  });
+}
+
+function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff) {
+  if (metricKey === "weekly") {
+    return weeklyLoss
+      .filter((entry) => !cutoff || entry.date >= cutoff)
+      .map((entry) => ({
+        ...entry,
+        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
+      }));
+  }
+
+  if (metricKey === "rolling28") {
+    return rolling28
+      .filter((entry) => !cutoff || entry.date >= cutoff)
+      .map((entry) => ({
+        ...entry,
+        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
+      }));
+  }
+
+  return series
+    .filter((entry) => !cutoff || entry.date >= cutoff)
+    .map((entry) => {
+      const isMissing = !Number.isFinite(entry.weight);
+      const value = Number.isFinite(entry.diff) ? entry.diff : null;
+
+      return {
+        label: entry.isoDate,
+        shortLabel: formatShortDate(entry.date),
+        value,
+        date: entry.date,
+        isMissing,
+        color: isMissing
+          ? "rgba(12, 60, 120, 0.18)"
+          : value > 0
+            ? COLORS.gain
+            : value < 0
+              ? COLORS.loss
+              : COLORS.neutral
+      };
+    });
+}
+
+function renderMarketChart(canvas, entries, metricKey) {
+  const values = entries.map((entry) => entry.value);
+  const labels = entries.map((entry) => entry.label);
+  const lineColor = metricKey === "daily" ? COLORS.raw : COLORS.ma28;
+  const fillColor = metricKey === "daily" ? "rgba(221, 16, 94, 0.14)" : "rgba(12, 60, 120, 0.16)";
+
+  drawLineChart(canvas, [
+    {
+      label: getBarsMetricLabel(metricKey),
+      values,
+      color: lineColor,
+      lineWidth: 2,
+      smooth: false,
+      connectGaps: false,
+      fillArea: true,
+      fillColor,
+      fillToZero: true,
+      showPoints: false
+    }
+  ], {
+    labels,
+    yFormatter: (value) => `${formatSignedWeight(value)} kg`,
+    xTickFormatter: (label, index, allLabels) => filterLineAxisLabel(label, index, allLabels),
     minHeight: 220
   });
 }
@@ -816,6 +865,38 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
         return;
       }
 
+      if (dataset.fillArea) {
+        const baseY = dataset.fillToZero && minValue <= 0 && maxValue >= 0
+          ? yForValue(0)
+          : padding.top + plotHeight;
+        context.save();
+        context.fillStyle = dataset.fillColor || "rgba(255, 255, 255, 0.08)";
+        context.beginPath();
+        context.moveTo(segment[0].x, baseY);
+        context.lineTo(segment[0].x, segment[0].y);
+
+        if (dataset.smooth && segment.length > 2) {
+          for (let index = 0; index < segment.length - 1; index += 1) {
+            const current = segment[index];
+            const next = segment[index + 1];
+            const controlX = (current.x + next.x) / 2;
+            context.quadraticCurveTo(current.x, current.y, controlX, (current.y + next.y) / 2);
+          }
+
+          const last = segment[segment.length - 1];
+          context.lineTo(last.x, last.y);
+        } else {
+          for (let index = 1; index < segment.length; index += 1) {
+            context.lineTo(segment[index].x, segment[index].y);
+          }
+        }
+
+        context.lineTo(segment[segment.length - 1].x, baseY);
+        context.closePath();
+        context.fill();
+        context.restore();
+      }
+
       context.beginPath();
       context.moveTo(segment[0].x, segment[0].y);
 
@@ -901,6 +982,13 @@ function renderBarChartToCanvas(context, width, height, data, options) {
 
   data.forEach((item, index) => {
     const x = padding.left + index * (barWidth + gap);
+    if (!Number.isFinite(item.value)) {
+      context.strokeStyle = item.color || COLORS.grid;
+      context.lineWidth = 1;
+      context.strokeRect(x, zeroY - 3, barWidth, 6);
+      return;
+    }
+
     const y = yForValue(item.value);
     const barTop = Math.min(y, zeroY);
     const barHeight = Math.max(2, Math.abs(zeroY - y));
