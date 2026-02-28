@@ -17,6 +17,13 @@ const COLORS = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const DAILY_DIFF_RANGES = {
+  "7d": 7,
+  "28d": 28,
+  "6m": 183,
+  "1y": 365,
+  all: null
+};
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -68,7 +75,7 @@ async function init() {
     });
 
     renderPrimaryChart(enrichedSeries);
-    renderDailyDiffChart(enrichedSeries);
+    setupDailyDiffControls(enrichedSeries);
     renderProjection(enrichedSeries, regression, goalEstimate);
     renderLossCharts(weeklyLoss, rolling28);
     renderHeatmap(enrichedSeries);
@@ -534,11 +541,38 @@ function renderPrimaryChart(series) {
   });
 }
 
-function renderDailyDiffChart(series) {
+function setupDailyDiffControls(series) {
+  const container = document.getElementById("dailyDiffRanges");
+  const buttons = Array.from(container.querySelectorAll("[data-range]"));
+  let activeRange = "7d";
+
+  const update = () => {
+    buttons.forEach((button) => {
+      const isActive = button.dataset.range === activeRange;
+      button.classList.toggle("is-active", isActive);
+      button.setAttribute("aria-pressed", isActive ? "true" : "false");
+    });
+    renderDailyDiffChart(series, activeRange);
+  };
+
+  buttons.forEach((button) => {
+    button.addEventListener("click", () => {
+      activeRange = button.dataset.range;
+      update();
+    });
+  });
+
+  update();
+}
+
+function renderDailyDiffChart(series, rangeKey = "7d") {
   const canvas = document.getElementById("dailyDiffChart");
+  const latestEntry = getLatestValueEntry(series);
+  const windowDays = DAILY_DIFF_RANGES[rangeKey] ?? null;
+  const cutoff = latestEntry && windowDays ? addDays(latestEntry.date, -(windowDays - 1)) : null;
   const entries = series
     .filter((entry) => Number.isFinite(entry.diff))
-    .slice(-42)
+    .filter((entry) => !cutoff || entry.date >= cutoff)
     .map((entry) => ({
       label: entry.isoDate,
       shortLabel: formatShortDate(entry.date),
