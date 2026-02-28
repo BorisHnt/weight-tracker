@@ -587,10 +587,14 @@ function renderCanvasChart(canvas) {
     return;
   }
 
-  const rect = canvas.parentElement.getBoundingClientRect();
+  const wrapper = canvas.parentElement;
+  const wrapperStyle = window.getComputedStyle(wrapper);
   const minHeight = canvas.__chartData.options?.minHeight || 220;
-  const cssWidth = Math.max(160, Math.round(rect.width));
-  const cssHeight = Math.max(minHeight, Math.round(rect.height || minHeight));
+  const paddingX = Number.parseFloat(wrapperStyle.paddingLeft) + Number.parseFloat(wrapperStyle.paddingRight);
+  const paddingY = Number.parseFloat(wrapperStyle.paddingTop) + Number.parseFloat(wrapperStyle.paddingBottom);
+  const cssWidth = Math.max(160, Math.round(wrapper.clientWidth - paddingX));
+  const fallbackHeight = Math.max(120, minHeight - Math.round(paddingY));
+  const cssHeight = Math.max(fallbackHeight, Math.round(wrapper.clientHeight - paddingY) || fallbackHeight);
   const dpr = window.devicePixelRatio || 1;
 
   canvas.width = Math.round(cssWidth * dpr);
