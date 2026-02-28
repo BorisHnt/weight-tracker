@@ -588,28 +588,49 @@ function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", ran
 
 function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff) {
   if (metricKey === "weekly") {
+    let runningWeight = getFirstValueEntry(series)?.weight ?? 0;
+
     return weeklyLoss
       .filter((entry) => !cutoff || entry.date >= cutoff)
       .map((entry) => ({
         ...entry,
+        marketClose: runningWeight - entry.value,
         color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }));
+      }))
+      .map((entry) => {
+        runningWeight = entry.marketClose;
+        return entry;
+      });
   }
 
   if (metricKey === "rolling28") {
+    let runningWeight = getFirstValueEntry(series)?.weight ?? 0;
+
     return rolling28
       .filter((entry) => !cutoff || entry.date >= cutoff)
       .map((entry) => ({
         ...entry,
+        marketClose: runningWeight - entry.value,
         color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }));
+      }))
+      .map((entry) => {
+        runningWeight = entry.marketClose;
+        return entry;
+      });
   }
+
+  let previousWeight = null;
 
   return series
     .filter((entry) => !cutoff || entry.date >= cutoff)
     .map((entry) => {
       const isMissing = !Number.isFinite(entry.weight);
       const value = Number.isFinite(entry.diff) ? entry.diff : 0;
+      const marketClose = Number.isFinite(entry.weight)
+        ? entry.weight
+        : previousWeight ?? getFirstValueEntry(series)?.weight ?? 0;
+
+      previousWeight = marketClose;
 
       return {
         label: entry.isoDate,
@@ -617,6 +638,7 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
         value,
         date: entry.date,
         isMissing,
+        marketClose,
         color: isMissing
           ? "rgba(12, 60, 120, 0.18)"
           : value > 0
@@ -639,16 +661,16 @@ function renderMarketChart(canvas, entries, metricKey) {
 }
 
 function buildCandlesFromEntries(entries) {
-  let previousClose = 0;
+  let previousClose = entries[0]?.marketClose ?? 0;
 
   return entries.map((entry, index) => {
-    const close = Number.isFinite(entry.value) ? entry.value : 0;
-    const open = index === 0 ? 0 : previousClose;
+    const close = Number.isFinite(entry.marketClose) ? entry.marketClose : previousClose;
+    const open = index === 0 ? close : previousClose;
     const spread = Math.abs(close - open);
-    const wickPadding = spread === 0 ? 0.12 : Math.max(0.06, spread * 0.18);
+    const wickPadding = spread === 0 ? 0.08 : Math.max(0.04, spread * 0.18);
     const high = Math.max(open, close) + wickPadding;
     const low = Math.min(open, close) - wickPadding;
-    const volume = Math.abs(close);
+    const volume = Math.abs(entry.value ?? 0);
     previousClose = close;
 
     return {
