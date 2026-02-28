@@ -3,7 +3,7 @@
   --panel: #2a2a2a;
   --text: #fbfbfb;
   --muted: rgba(251, 251, 251, 0.7);
-  --border: #333333;
+  --border: #0c3c78;
   --accent-ui: #0c3c78;
   --accent-ui-soft: rgba(12, 60, 120, 0.28);
   --raw: #dd105e;
@@ -15,7 +15,6 @@
   --radius: 6px;
   --gap: 10px;
   --pad: 12px;
-  --shadow: 0 16px 36px rgba(0, 0, 0, 0.28);
 }
 
 * {
@@ -29,10 +28,7 @@ html {
 body {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top right, rgba(12, 60, 120, 0.24), transparent 26%),
-    radial-gradient(circle at bottom left, rgba(12, 60, 120, 0.16), transparent 28%),
-    linear-gradient(180deg, #242424 0%, #212121 100%);
+  background: var(--bg);
   color: var(--text);
   font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
   font-variant-numeric: tabular-nums;
@@ -53,10 +49,9 @@ canvas {
 }
 
 .container {
-  background: linear-gradient(180deg, rgba(49, 49, 49, 0.94), rgba(42, 42, 42, 0.96));
+  background: var(--panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   padding: var(--pad);
 }
 
@@ -66,17 +61,6 @@ canvas {
   gap: 10px;
   position: relative;
   overflow: hidden;
-}
-
-.hero::after {
-  content: "";
-  position: absolute;
-  inset: auto -40px -40px auto;
-  width: 140px;
-  height: 140px;
-  background: linear-gradient(135deg, rgba(12, 60, 120, 0.56), rgba(12, 60, 120, 0));
-  filter: blur(10px);
-  pointer-events: none;
 }
 
 .eyebrow,
@@ -166,7 +150,7 @@ canvas {
 .stat-card,
 .subpanel,
 .projection-copy {
-  background: rgba(33, 33, 33, 0.72);
+  background: #242424;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
@@ -193,7 +177,7 @@ canvas {
 .canvas-wrap {
   position: relative;
   min-height: 220px;
-  background: rgba(33, 33, 33, 0.45);
+  background: #242424;
   border: 1px solid rgba(12, 60, 120, 0.34);
   border-radius: var(--radius);
   padding: 6px;
@@ -326,6 +310,7 @@ canvas {
 }
 
 .heatmap-fill {
+  display: block;
   width: 100%;
   height: 100%;
   opacity: var(--cell-opacity, 0);
@@ -390,12 +375,11 @@ canvas {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: rgba(20, 20, 20, 0.96);
+  background: #202020;
   color: var(--text);
   font-size: 0.78rem;
   line-height: 1.45;
   white-space: pre-line;
-  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.32);
 }
 
 .error-state {
