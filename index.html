@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Weight Tracker Dashboard</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="page">
+    <header class="hero container">
+      <div>
+        <p class="eyebrow">Suivi de poids</p>
+        <h1>Dashboard</h1>
+      </div>
+      <p class="hero-copy" id="statusText">Chargement des donnees...</p>
+    </header>
+
+    <section class="container section" aria-labelledby="stats-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">1</p>
+          <h2 id="stats-title">Stats rapides</h2>
+        </div>
+      </div>
+      <div class="stats-grid" id="statsGrid">
+        <article class="stat-card">
+          <span class="stat-label">Poids actuel</span>
+          <strong class="stat-value">--</strong>
+          <span class="stat-meta">Derniere mesure</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Perte totale</span>
+          <strong class="stat-value">--</strong>
+          <span class="stat-meta">Depuis le debut</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Rythme moyen</span>
+          <strong class="stat-value">--</strong>
+          <span class="stat-meta">kg / semaine</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Objectif</span>
+          <strong class="stat-value">--</strong>
+          <span class="stat-meta">Projection</span>
+        </article>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="line-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">2</p>
+          <h2 id="line-title">Courbe principale</h2>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><i class="swatch swatch-raw"></i>Poids brut</span>
+          <span class="legend-item"><i class="swatch swatch-ma7"></i>MA7</span>
+          <span class="legend-item"><i class="swatch swatch-ma28"></i>MA28</span>
+        </div>
+      </div>
+      <div class="canvas-wrap tall">
+        <canvas id="lineChart" aria-label="Courbe du poids" role="img"></canvas>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="diff-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">3</p>
+          <h2 id="diff-title">Variation journaliere</h2>
+        </div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="dailyDiffChart" aria-label="Variation journaliere du poids" role="img"></canvas>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="projection-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">4</p>
+          <h2 id="projection-title">Projection objectif</h2>
+        </div>
+      </div>
+      <div class="projection-grid">
+        <div class="projection-copy" id="projectionSummary">
+          <p class="projection-label">Tendance MA7</p>
+          <strong class="projection-value">--</strong>
+          <p class="projection-detail">En attente des donnees.</p>
+        </div>
+        <div class="canvas-wrap short">
+          <canvas id="projectionChart" aria-label="Projection vers l objectif" role="img"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="bars-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">5</p>
+          <h2 id="bars-title">Barres hebdo et 28 jours</h2>
+        </div>
+      </div>
+      <div class="dual-chart-grid">
+        <article class="subpanel">
+          <div class="subpanel-head">
+            <h3>Perte hebdomadaire</h3>
+          </div>
+          <div class="canvas-wrap short">
+            <canvas id="weeklyLossChart" aria-label="Perte hebdomadaire" role="img"></canvas>
+          </div>
+        </article>
+        <article class="subpanel">
+          <div class="subpanel-head">
+            <h3>Perte glissante 28 jours</h3>
+          </div>
+          <div class="canvas-wrap short">
+            <canvas id="rollingLossChart" aria-label="Perte glissante sur 28 jours" role="img"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="heatmap-title">
+      <div class="section-head">
+        <div>
+          <p class="section-kicker">6</p>
+          <h2 id="heatmap-title">Heatmap quotidienne</h2>
+        </div>
+      </div>
+      <div class="heatmap-frame">
+        <div class="heatmap-weekdays" aria-hidden="true">
+          <span>Lun</span>
+          <span>Mar</span>
+          <span>Mer</span>
+          <span>Jeu</span>
+          <span>Ven</span>
+          <span>Sam</span>
+          <span>Dim</span>
+        </div>
+        <div class="heatmap-grid" id="heatmapGrid"></div>
+      </div>
+    </section>
+  </main>
+
+  <div class="tooltip" id="tooltip" hidden></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
