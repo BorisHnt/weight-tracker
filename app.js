@@ -353,6 +353,13 @@ function drawBarChart(canvas, data, options = {}) {
   renderCanvasChart(canvas);
 }
 
+function drawCandlestickChart(canvas, data, options = {}) {
+  canvas.__chartType = "candles";
+  canvas.__chartData = { data, options };
+  setupCanvasRedraw(canvas);
+  renderCanvasChart(canvas);
+}
+
 function renderHeatmap(series) {
   const grid = document.getElementById("heatmapGrid");
   const monthRow = document.getElementById("heatmapMonths");
@@ -602,7 +609,7 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
     .filter((entry) => !cutoff || entry.date >= cutoff)
     .map((entry) => {
       const isMissing = !Number.isFinite(entry.weight);
-      const value = Number.isFinite(entry.diff) ? entry.diff : null;
+      const value = Number.isFinite(entry.diff) ? entry.diff : 0;
 
       return {
         label: entry.isoDate,
@@ -622,29 +629,38 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
 }
 
 function renderMarketChart(canvas, entries, metricKey) {
-  const values = entries.map((entry) => entry.value);
-  const labels = entries.map((entry) => entry.label);
-  const lineColor = metricKey === "daily" ? COLORS.raw : COLORS.ma28;
-  const fillColor = metricKey === "daily" ? "rgba(221, 16, 94, 0.14)" : "rgba(12, 60, 120, 0.16)";
+  const candles = buildCandlesFromEntries(entries);
 
-  drawLineChart(canvas, [
-    {
-      label: getBarsMetricLabel(metricKey),
-      values,
-      color: lineColor,
-      lineWidth: 2,
-      smooth: false,
-      connectGaps: false,
-      fillArea: true,
-      fillColor,
-      fillToZero: true,
-      showPoints: false
-    }
-  ], {
-    labels,
+  drawCandlestickChart(canvas, candles, {
     yFormatter: (value) => `${formatSignedWeight(value)} kg`,
-    xTickFormatter: (label, index, allLabels) => filterLineAxisLabel(label, index, allLabels),
+    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel || item.label, index, items.length),
     minHeight: 220
+  });
+}
+
+function buildCandlesFromEntries(entries) {
+  let previousClose = 0;
+
+  return entries.map((entry, index) => {
+    const close = Number.isFinite(entry.value) ? entry.value : 0;
+    const open = index === 0 ? 0 : previousClose;
+    const spread = Math.abs(close - open);
+    const wickPadding = spread === 0 ? 0.12 : Math.max(0.06, spread * 0.18);
+    const high = Math.max(open, close) + wickPadding;
+    const low = Math.min(open, close) - wickPadding;
+    const volume = Math.abs(close);
+    previousClose = close;
+
+    return {
+      label: entry.label,
+      shortLabel: entry.shortLabel,
+      open,
+      high,
+      low,
+      close,
+      volume,
+      color: close >= open ? COLORS.gain : COLORS.loss
+    };
   });
 }
 
@@ -764,6 +780,11 @@ function renderCanvasChart(canvas) {
 
   if (chartType === "line") {
     renderLineChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.datasets, canvas.__chartData.options);
+    return;
+  }
+
+  if (chartType === "candles") {
+    renderCandlestickChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.data, canvas.__chartData.options);
     return;
   }
 
@@ -1016,6 +1037,118 @@ function renderBarChartToCanvas(context, width, height, data, options) {
 
     context.fillStyle = COLORS.muted;
     context.fillText(label, x, padding.top + plotHeight + 10);
+  });
+}
+
+function renderCandlestickChartToCanvas(context, width, height, data, options) {
+  const padding = { top: 18, right: 10, bottom: 36, left: 56 };
+  const plotWidth = Math.max(10, width - padding.left - padding.right);
+  const plotHeight = Math.max(10, height - padding.top - padding.bottom);
+
+  if (!data.length) {
+    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    return;
+  }
+
+  const prices = data.flatMap((item) => [item.low, item.high]).filter(Number.isFinite);
+  const volumes = data.map((item) => item.volume).filter(Number.isFinite);
+
+  if (!prices.length) {
+    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    return;
+  }
+
+  let minValue = Math.min(...prices);
+  let maxValue = Math.max(...prices);
+
+  if (minValue === maxValue) {
+    minValue -= 1;
+    maxValue += 1;
+  }
+
+  const range = maxValue - minValue;
+  minValue -= range * 0.08;
+  maxValue += range * 0.08;
+
+  const volumeHeight = Math.max(32, Math.round(plotHeight * 0.22));
+  const priceHeight = plotHeight - volumeHeight - 10;
+  const maxVolume = Math.max(...volumes, 1);
+  const yForValue = (value) => padding.top + priceHeight - ((value - minValue) / (maxValue - minValue)) * priceHeight;
+
+  context.strokeStyle = COLORS.axis;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(padding.left, padding.top);
+  context.lineTo(padding.left, padding.top + plotHeight);
+  context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+  context.stroke();
+
+  const ticks = 5;
+  context.fillStyle = COLORS.muted;
+  context.font = "12px Avenir Next, Segoe UI, sans-serif";
+  context.textAlign = "right";
+  context.textBaseline = "middle";
+
+  for (let tick = 0; tick <= ticks; tick += 1) {
+    const ratio = tick / ticks;
+    const y = padding.top + priceHeight - ratio * priceHeight;
+    const value = minValue + ratio * (maxValue - minValue);
+    context.strokeStyle = COLORS.grid;
+    context.beginPath();
+    context.moveTo(padding.left, y);
+    context.lineTo(padding.left + plotWidth, y);
+    context.stroke();
+    context.fillText(options.yFormatter ? options.yFormatter(value) : formatSignedWeight(value), padding.left - 8, y);
+  }
+
+  const slotWidth = plotWidth / Math.max(data.length, 1);
+  const bodyWidth = Math.max(4, Math.min(18, slotWidth * 0.58));
+
+  data.forEach((item, index) => {
+    const centerX = padding.left + slotWidth * index + slotWidth / 2;
+    const openY = yForValue(item.open);
+    const closeY = yForValue(item.close);
+    const highY = yForValue(item.high);
+    const lowY = yForValue(item.low);
+    const topY = Math.min(openY, closeY);
+    const bodyHeight = Math.max(2, Math.abs(closeY - openY));
+    const volumeBarHeight = (item.volume / maxVolume) * volumeHeight;
+    const volumeY = padding.top + priceHeight + 10 + (volumeHeight - volumeBarHeight);
+
+    context.strokeStyle = item.color;
+    context.lineWidth = 1;
+    context.beginPath();
+    context.moveTo(centerX, highY);
+    context.lineTo(centerX, lowY);
+    context.stroke();
+
+    context.fillStyle = item.color;
+    roundRect(context, centerX - bodyWidth / 2, topY, bodyWidth, bodyHeight, 2);
+    context.fill();
+
+    context.globalAlpha = 0.28;
+    context.fillRect(centerX - bodyWidth / 2, volumeY, bodyWidth, volumeBarHeight);
+    context.globalAlpha = 1;
+  });
+
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  const tickStep = Math.max(1, Math.ceil(data.length / 5));
+
+  data.forEach((item, index) => {
+    if (index % tickStep !== 0 && index !== data.length - 1) {
+      return;
+    }
+
+    const centerX = padding.left + slotWidth * index + slotWidth / 2;
+    const label = options.xTickFormatter ? options.xTickFormatter(item, index, data) : item.shortLabel || item.label;
+
+    if (!label) {
+      return;
+    }
+
+    context.fillStyle = COLORS.muted;
+    context.fillText(label, centerX, padding.top + plotHeight + 10);
   });
 }
 
