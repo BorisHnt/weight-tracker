@@ -4,6 +4,8 @@
   --text: #fbfbfb;
   --muted: rgba(251, 251, 251, 0.7);
   --border: #333333;
+  --accent-ui: #0c3c78;
+  --accent-ui-soft: rgba(12, 60, 120, 0.28);
   --raw: #dd105e;
   --ma7: #ffd700;
   --ma28: #0c3c78;
@@ -28,8 +30,8 @@ body {
   margin: 0;
   min-height: 100vh;
   background:
-    radial-gradient(circle at top right, rgba(221, 16, 94, 0.16), transparent 26%),
-    radial-gradient(circle at bottom left, rgba(255, 215, 0, 0.12), transparent 28%),
+    radial-gradient(circle at top right, rgba(12, 60, 120, 0.24), transparent 26%),
+    radial-gradient(circle at bottom left, rgba(12, 60, 120, 0.16), transparent 28%),
     linear-gradient(180deg, #242424 0%, #212121 100%);
   color: var(--text);
   font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
@@ -72,7 +74,7 @@ canvas {
   inset: auto -40px -40px auto;
   width: 140px;
   height: 140px;
-  background: linear-gradient(135deg, rgba(12, 60, 120, 0.5), rgba(221, 16, 94, 0));
+  background: linear-gradient(135deg, rgba(12, 60, 120, 0.56), rgba(12, 60, 120, 0));
   filter: blur(10px);
   pointer-events: none;
 }
@@ -192,7 +194,7 @@ canvas {
   position: relative;
   min-height: 220px;
   background: rgba(33, 33, 33, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(12, 60, 120, 0.34);
   border-radius: var(--radius);
   padding: 6px;
 }
@@ -227,7 +229,7 @@ canvas {
 }
 
 :root {
-  --heat-cell: 11px;
+  --heat-cell: 13px;
   --heat-gap: 4px;
 }
 
@@ -305,8 +307,8 @@ canvas {
   width: var(--heat-cell);
   height: var(--heat-cell);
   padding: 0;
-  background: rgba(255, 255, 255, 0.035);
-  border: 1px solid rgba(255, 255, 255, 0.04);
+  background: rgba(12, 60, 120, 0.08);
+  border: 1px solid rgba(12, 60, 120, 0.2);
   border-radius: 2px;
   overflow: hidden;
   cursor: pointer;
@@ -315,11 +317,11 @@ canvas {
 
 .heatmap-cell:hover {
   transform: translateY(-2px);
-  border-color: rgba(255, 255, 255, 0.18);
+  border-color: rgba(12, 60, 120, 0.62);
 }
 
 .heatmap-cell:focus-visible {
-  outline: 2px solid rgba(255, 215, 0, 0.85);
+  outline: 2px solid rgba(12, 60, 120, 0.9);
   outline-offset: 1px;
 }
 
@@ -360,8 +362,8 @@ canvas {
   width: var(--heat-cell);
   height: var(--heat-cell);
   border-radius: 2px;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(12, 60, 120, 0.2);
+  background: rgba(12, 60, 120, 0.08);
   overflow: hidden;
 }
 
@@ -370,6 +372,15 @@ canvas {
   width: 100%;
   height: 100%;
   background: #ffd700;
+}
+
+.heatmap-legend-swatch.is-gain span {
+  background: #dd105e;
+}
+
+.heatmap-legend-swatch.is-missing span {
+  background: #0c3c78;
+  opacity: 0.16;
 }
 
 .tooltip {
@@ -416,6 +427,6 @@ canvas {
   }
 
   .heatmap-shell {
-    --heat-cell: 12px;
+    --heat-cell: 14px;
   }
 }

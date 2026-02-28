@@ -468,11 +468,11 @@ function renderHeatmap(series) {
 }
 
 function renderHeatmapLegend(container) {
-  const startLabel = document.createElement("span");
-  startLabel.textContent = "Moins";
-  container.appendChild(startLabel);
+  const lossLabel = document.createElement("span");
+  lossLabel.textContent = "Perte";
+  container.appendChild(lossLabel);
 
-  [0, 0.18, 0.34, 0.5, 0.66, 0.82].forEach((opacity) => {
+  [0.2, 0.45, 0.75].forEach((opacity) => {
     const swatch = document.createElement("span");
     const fill = document.createElement("span");
     swatch.className = "heatmap-legend-swatch";
@@ -481,9 +481,18 @@ function renderHeatmapLegend(container) {
     container.appendChild(swatch);
   });
 
-  const endLabel = document.createElement("span");
-  endLabel.textContent = "Plus";
-  container.appendChild(endLabel);
+  const gainLabel = document.createElement("span");
+  gainLabel.textContent = "Prise";
+  container.appendChild(gainLabel);
+
+  [0.2, 0.45, 0.75].forEach((opacity) => {
+    const swatch = document.createElement("span");
+    const fill = document.createElement("span");
+    swatch.className = "heatmap-legend-swatch is-gain";
+    fill.style.opacity = opacity.toFixed(2);
+    swatch.appendChild(fill);
+    container.appendChild(swatch);
+  });
 }
 
 function renderPrimaryChart(series) {
@@ -505,8 +514,6 @@ function renderPrimaryChart(series) {
       color: COLORS.ma7,
       lineWidth: 2.4,
       smooth: true,
-      showPoints: true,
-      pointRadius: 2.4,
       connectGaps: true
     },
     {
@@ -515,8 +522,6 @@ function renderPrimaryChart(series) {
       color: COLORS.ma28,
       lineWidth: 2.4,
       smooth: true,
-      showPoints: true,
-      pointRadius: 2.4,
       connectGaps: true
     }
   ];
@@ -598,8 +603,6 @@ function renderProjection(series, regression, goalEstimate) {
       color: COLORS.ma7,
       lineWidth: 2.4,
       smooth: true,
-      showPoints: true,
-      pointRadius: 2.4,
       connectGaps: true
     },
     {
