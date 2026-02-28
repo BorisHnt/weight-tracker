@@ -114,39 +114,38 @@ canvas {
   gap: 8px 12px;
 }
 
-.range-tabs {
+.chart-controls {
   display: flex;
   flex-wrap: wrap;
   justify-content: flex-end;
-  gap: 6px;
+  gap: 8px;
 }
 
-.range-tab {
+.chart-control {
+  display: grid;
+  gap: 4px;
+}
+
+.chart-control-label {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1;
+}
+
+.chart-select {
   appearance: none;
+  min-width: 148px;
   border: 1px solid rgba(12, 60, 120, 0.42);
   background: #242424;
-  color: var(--muted);
-  border-radius: 4px;
-  padding: 6px 8px;
-  font: inherit;
-  font-size: 0.78rem;
-  line-height: 1;
-  cursor: pointer;
-  transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
-}
-
-.range-tab:hover {
-  border-color: rgba(12, 60, 120, 0.8);
   color: var(--text);
+  border-radius: 4px;
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 0.84rem;
+  line-height: 1.2;
 }
 
-.range-tab.is-active {
-  background: #0c3c78;
-  border-color: #0c3c78;
-  color: #fbfbfb;
-}
-
-.range-tab:focus-visible {
+.chart-select:focus-visible {
   outline: 2px solid rgba(12, 60, 120, 0.9);
   outline-offset: 1px;
 }
@@ -438,7 +437,7 @@ canvas {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .range-tabs {
+  .chart-controls {
     max-width: 460px;
   }
 

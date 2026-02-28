@@ -17,7 +17,7 @@ const COLORS = {
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const DAILY_DIFF_RANGES = {
+const CHART_RANGES = {
   "7d": 7,
   "28d": 28,
   "6m": 183,
@@ -75,9 +75,8 @@ async function init() {
     });
 
     renderPrimaryChart(enrichedSeries);
-    setupDailyDiffControls(enrichedSeries);
+    setupBarsChartControls(enrichedSeries, weeklyLoss, rolling28);
     renderProjection(enrichedSeries, regression, goalEstimate);
-    renderLossCharts(weeklyLoss, rolling28);
     renderHeatmap(enrichedSeries);
 
     statusText.textContent = `${records.length} mesures chargees du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
@@ -541,48 +540,61 @@ function renderPrimaryChart(series) {
   });
 }
 
-function setupDailyDiffControls(series) {
-  const container = document.getElementById("dailyDiffRanges");
-  const buttons = Array.from(container.querySelectorAll("[data-range]"));
-  let activeRange = "7d";
+function setupBarsChartControls(series, weeklyLoss, rolling28) {
+  const metricSelect = document.getElementById("barsMetricSelect");
+  const rangeSelect = document.getElementById("barsRangeSelect");
 
   const update = () => {
-    buttons.forEach((button) => {
-      const isActive = button.dataset.range === activeRange;
-      button.classList.toggle("is-active", isActive);
-      button.setAttribute("aria-pressed", isActive ? "true" : "false");
-    });
-    renderDailyDiffChart(series, activeRange);
+    renderBarsChart(series, weeklyLoss, rolling28, metricSelect.value, rangeSelect.value);
   };
 
-  buttons.forEach((button) => {
-    button.addEventListener("click", () => {
-      activeRange = button.dataset.range;
-      update();
-    });
-  });
-
+  metricSelect.addEventListener("change", update);
+  rangeSelect.addEventListener("change", update);
   update();
 }
 
-function renderDailyDiffChart(series, rangeKey = "7d") {
-  const canvas = document.getElementById("dailyDiffChart");
+function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d") {
+  const canvas = document.getElementById("barsChart");
+  const hint = document.getElementById("barsChartHint");
   const latestEntry = getLatestValueEntry(series);
-  const windowDays = DAILY_DIFF_RANGES[rangeKey] ?? null;
+  const windowDays = CHART_RANGES[rangeKey] ?? null;
   const cutoff = latestEntry && windowDays ? addDays(latestEntry.date, -(windowDays - 1)) : null;
-  const entries = series
-    .filter((entry) => Number.isFinite(entry.diff))
-    .filter((entry) => !cutoff || entry.date >= cutoff)
-    .map((entry) => ({
-      label: entry.isoDate,
-      shortLabel: formatShortDate(entry.date),
-      value: entry.diff,
-      color: entry.diff > 0 ? COLORS.gain : entry.diff < 0 ? COLORS.loss : COLORS.neutral
-    }));
+  const metricLabel = getBarsMetricLabel(metricKey);
+  const rangeLabel = getBarsRangeLabel(rangeKey);
+  let entries = [];
+
+  if (metricKey === "weekly") {
+    entries = weeklyLoss
+      .filter((entry) => !cutoff || entry.date >= cutoff)
+      .map((entry) => ({
+        ...entry,
+        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
+      }));
+  } else if (metricKey === "rolling28") {
+    entries = rolling28
+      .filter((entry) => !cutoff || entry.date >= cutoff)
+      .map((entry) => ({
+        ...entry,
+        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
+      }));
+  } else {
+    entries = series
+      .filter((entry) => Number.isFinite(entry.diff))
+      .filter((entry) => !cutoff || entry.date >= cutoff)
+      .map((entry) => ({
+        label: entry.isoDate,
+        shortLabel: formatShortDate(entry.date),
+        value: entry.diff,
+        date: entry.date,
+        color: entry.diff > 0 ? COLORS.gain : entry.diff < 0 ? COLORS.loss : COLORS.neutral
+      }));
+  }
+
+  hint.textContent = `${metricLabel} sur ${rangeLabel.toLowerCase()}.`;
 
   drawBarChart(canvas, entries, {
     yFormatter: (value) => `${formatSignedWeight(value)} kg`,
-    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
+    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel || item.label, index, items.length),
     minHeight: 220
   });
 }
@@ -661,21 +673,6 @@ function renderProjection(series, regression, goalEstimate) {
     labels,
     yFormatter: (value) => `${formatWeight(value)} kg`,
     xTickFormatter: (label, index, allLabels) => filterLineAxisLabel(label, index, allLabels),
-    minHeight: 210
-  });
-}
-
-function renderLossCharts(weeklyLoss, rolling28) {
-  drawBarChart(document.getElementById("weeklyLossChart"), weeklyLoss.slice(-20), {
-    yFormatter: (value) => `${formatSignedWeight(value)} kg`,
-    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
-    minHeight: 210
-  });
-
-  const sampledRolling = rolling28.filter((_, index) => index % 7 === 0).slice(-20);
-  drawBarChart(document.getElementById("rollingLossChart"), sampledRolling, {
-    yFormatter: (value) => `${formatSignedWeight(value)} kg`,
-    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
     minHeight: 210
   });
 }
@@ -988,6 +985,38 @@ function filterLineAxisLabel(label, index, labels) {
 function filterBarAxisLabel(label, index, total) {
   const every = Math.max(1, Math.ceil(total / 5));
   return index % every === 0 || index === total - 1 ? label : "";
+}
+
+function getBarsMetricLabel(metricKey) {
+  if (metricKey === "weekly") {
+    return "Perte hebdomadaire";
+  }
+
+  if (metricKey === "rolling28") {
+    return "Perte glissante 28 jours";
+  }
+
+  return "Variation journaliere";
+}
+
+function getBarsRangeLabel(rangeKey) {
+  if (rangeKey === "28d") {
+    return "28 jours";
+  }
+
+  if (rangeKey === "6m") {
+    return "6 mois";
+  }
+
+  if (rangeKey === "1y") {
+    return "1 an";
+  }
+
+  if (rangeKey === "all") {
+    return "depuis le debut";
+  }
+
+  return "7 jours";
 }
 
 function splitContinuousPoints(points) {

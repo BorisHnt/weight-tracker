@@ -68,18 +68,32 @@
       <div class="section-head">
         <div>
           <p class="section-kicker">3</p>
-          <h2 id="diff-title">Variation journaliere</h2>
+          <h2 id="diff-title">Variations et pertes</h2>
         </div>
-        <div class="range-tabs" id="dailyDiffRanges" aria-label="Periode variation journaliere">
-          <button class="range-tab is-active" type="button" data-range="7d">7 jours</button>
-          <button class="range-tab" type="button" data-range="28d">28 jours</button>
-          <button class="range-tab" type="button" data-range="6m">6 mois</button>
-          <button class="range-tab" type="button" data-range="1y">1 an</button>
-          <button class="range-tab" type="button" data-range="all">Depuis le debut</button>
+        <div class="chart-controls">
+          <label class="chart-control">
+            <span class="chart-control-label">Metrique</span>
+            <select id="barsMetricSelect" class="chart-select" aria-label="Metrique du graphique">
+              <option value="daily">Variation journaliere</option>
+              <option value="weekly">Perte hebdomadaire</option>
+              <option value="rolling28">Perte glissante 28 jours</option>
+            </select>
+          </label>
+          <label class="chart-control">
+            <span class="chart-control-label">Periode</span>
+            <select id="barsRangeSelect" class="chart-select" aria-label="Periode du graphique">
+              <option value="7d">7 jours</option>
+              <option value="28d">28 jours</option>
+              <option value="6m">6 mois</option>
+              <option value="1y">1 an</option>
+              <option value="all">Depuis le debut</option>
+            </select>
+          </label>
         </div>
       </div>
+      <p class="projection-detail" id="barsChartHint">Variation journaliere sur les 7 derniers jours.</p>
       <div class="canvas-wrap">
-        <canvas id="dailyDiffChart" aria-label="Variation journaliere du poids" role="img"></canvas>
+        <canvas id="barsChart" aria-label="Graphique des variations et pertes" role="img"></canvas>
       </div>
     </section>
 
@@ -102,37 +116,10 @@
       </div>
     </section>
 
-    <section class="container section" aria-labelledby="bars-title">
-      <div class="section-head">
-        <div>
-          <p class="section-kicker">5</p>
-          <h2 id="bars-title">Barres hebdo et 28 jours</h2>
-        </div>
-      </div>
-      <div class="dual-chart-grid">
-        <article class="subpanel">
-          <div class="subpanel-head">
-            <h3>Perte hebdomadaire</h3>
-          </div>
-          <div class="canvas-wrap short">
-            <canvas id="weeklyLossChart" aria-label="Perte hebdomadaire" role="img"></canvas>
-          </div>
-        </article>
-        <article class="subpanel">
-          <div class="subpanel-head">
-            <h3>Perte glissante 28 jours</h3>
-          </div>
-          <div class="canvas-wrap short">
-            <canvas id="rollingLossChart" aria-label="Perte glissante sur 28 jours" role="img"></canvas>
-          </div>
-        </article>
-      </div>
-    </section>
-
     <section class="container section" aria-labelledby="heatmap-title">
       <div class="section-head">
         <div>
-          <p class="section-kicker">6</p>
+          <p class="section-kicker">5</p>
           <h2 id="heatmap-title">Heatmap quotidienne</h2>
         </div>
       </div>
