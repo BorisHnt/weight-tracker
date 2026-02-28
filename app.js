@@ -435,21 +435,30 @@ function renderPrimaryChart(series) {
       values: series.map((entry) => entry.weight),
       color: COLORS.raw,
       lineWidth: 2,
-      smooth: true
+      smooth: false,
+      showPoints: true,
+      pointRadius: 2.8,
+      connectGaps: true
     },
     {
       label: "MA7",
       values: series.map((entry) => entry.ma7),
       color: COLORS.ma7,
       lineWidth: 2.4,
-      smooth: true
+      smooth: true,
+      showPoints: true,
+      pointRadius: 2.4,
+      connectGaps: true
     },
     {
       label: "MA28",
       values: series.map((entry) => entry.ma28),
       color: COLORS.ma28,
       lineWidth: 2.4,
-      smooth: true
+      smooth: true,
+      showPoints: true,
+      pointRadius: 2.4,
+      connectGaps: true
     }
   ];
 
@@ -529,7 +538,10 @@ function renderProjection(series, regression, goalEstimate) {
       values: ma7Values,
       color: COLORS.ma7,
       lineWidth: 2.4,
-      smooth: true
+      smooth: true,
+      showPoints: true,
+      pointRadius: 2.4,
+      connectGaps: true
     },
     {
       label: "Projection",
@@ -537,7 +549,8 @@ function renderProjection(series, regression, goalEstimate) {
       color: COLORS.raw,
       lineWidth: 2,
       smooth: false,
-      dash: [6, 6]
+      dash: [6, 6],
+      connectGaps: true
     },
     {
       label: "Objectif",
@@ -545,7 +558,8 @@ function renderProjection(series, regression, goalEstimate) {
       color: COLORS.ma28,
       lineWidth: 1.6,
       smooth: false,
-      dash: [4, 4]
+      dash: [4, 4],
+      connectGaps: true
     }
   ], {
     labels,
@@ -689,9 +703,10 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
   });
 
   datasets.forEach((dataset) => {
-    const segments = splitContinuousPoints(dataset.values.map((value, index) => (
+    const points = dataset.values.map((value, index) => (
       Number.isFinite(value) ? { x: xForIndex(index), y: yForValue(value) } : null
-    )));
+    ));
+    const segments = dataset.connectGaps === false ? splitContinuousPoints(points) : [points.filter(Boolean)];
 
     context.save();
     context.strokeStyle = dataset.color || COLORS.text;
@@ -733,7 +748,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
         segment.forEach((point) => {
           context.fillStyle = dataset.color || COLORS.text;
           context.beginPath();
-          context.arc(point.x, point.y, 2.8, 0, Math.PI * 2);
+          context.arc(point.x, point.y, dataset.pointRadius || 2.8, 0, Math.PI * 2);
           context.fill();
         });
       }
