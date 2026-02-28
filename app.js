@@ -349,32 +349,69 @@ function drawBarChart(canvas, data, options = {}) {
 
 function renderHeatmap(series) {
   const grid = document.getElementById("heatmapGrid");
+  const monthRow = document.getElementById("heatmapMonths");
+  const yAxis = document.getElementById("heatmapYAxis");
+  const legend = document.getElementById("heatmapLegend");
   const tooltip = document.getElementById("tooltip");
   const firstEntry = series[0];
 
   grid.innerHTML = "";
+  monthRow.innerHTML = "";
+  yAxis.innerHTML = "";
+  legend.innerHTML = "";
 
   if (!firstEntry) {
     return;
   }
 
-  const offset = (firstEntry.date.getUTCDay() + 6) % 7;
-
-  for (let index = 0; index < offset; index += 1) {
-    const empty = document.createElement("div");
-    empty.className = "heatmap-empty";
-    grid.appendChild(empty);
-  }
+  ["", "L", "M", "M", "J", "V", "S", "D"].forEach((label) => {
+    const item = document.createElement("span");
+    item.textContent = label;
+    yAxis.appendChild(item);
+  });
 
   const maxDiff = series.reduce((accumulator, entry) => {
     const value = Math.abs(entry.diff ?? 0);
     return value > accumulator ? value : accumulator;
   }, 0);
 
-  series.forEach((entry) => {
+  const entryMap = new Map(series.map((entry) => [entry.isoDate, entry]));
+  const gridStart = startOfISOWeek(firstEntry.date);
+  const gridEnd = endOfISOWeek(series[series.length - 1].date);
+  const totalDays = differenceInDays(gridEnd, gridStart) + 1;
+  const weekCount = Math.ceil(totalDays / 7);
+  let previousMonthKey = "";
+
+  for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+    const weekStart = addDays(gridStart, weekIndex * 7);
+    const monthCell = document.createElement("div");
+    monthCell.className = "heatmap-month";
+    const monthLabel = getHeatmapMonthLabel(weekStart, previousMonthKey, firstEntry.date);
+
+    if (monthLabel.text) {
+      const text = document.createElement("span");
+      text.textContent = monthLabel.text;
+      monthCell.appendChild(text);
+      previousMonthKey = monthLabel.key;
+    }
+
+    monthRow.appendChild(monthCell);
+  }
+
+  for (let dayIndex = 0; dayIndex < totalDays; dayIndex += 1) {
+    const date = addDays(gridStart, dayIndex);
+    const isoDate = formatISODate(date);
+    const entry = entryMap.get(isoDate) || {
+      date,
+      isoDate,
+      weight: null,
+      diff: null
+    };
     const cell = document.createElement("button");
     cell.type = "button";
     cell.className = "heatmap-cell";
+    const fill = document.createElement("span");
+    fill.className = "heatmap-fill";
 
     if (!Number.isFinite(entry.weight)) {
       cell.classList.add("is-missing");
@@ -392,6 +429,7 @@ function renderHeatmap(series) {
     cell.style.setProperty("--cell-opacity", opacity.toFixed(2));
     cell.dataset.tooltip = buildHeatmapTooltip(entry);
     cell.setAttribute("aria-label", cell.dataset.tooltip.replace(/\n/g, ", "));
+    cell.appendChild(fill);
 
     cell.addEventListener("mouseenter", showTooltip);
     cell.addEventListener("mousemove", moveTooltip);
@@ -400,7 +438,9 @@ function renderHeatmap(series) {
     cell.addEventListener("blur", hideTooltip);
 
     grid.appendChild(cell);
-  });
+  }
+
+  renderHeatmapLegend(legend);
 
   function showTooltip(event) {
     const content = event.currentTarget.dataset.tooltip;
@@ -425,6 +465,25 @@ function renderHeatmap(series) {
   function hideTooltip() {
     tooltip.hidden = true;
   }
+}
+
+function renderHeatmapLegend(container) {
+  const startLabel = document.createElement("span");
+  startLabel.textContent = "Moins";
+  container.appendChild(startLabel);
+
+  [0, 0.18, 0.34, 0.5, 0.66, 0.82].forEach((opacity) => {
+    const swatch = document.createElement("span");
+    const fill = document.createElement("span");
+    swatch.className = "heatmap-legend-swatch";
+    fill.style.opacity = opacity.toFixed(2);
+    swatch.appendChild(fill);
+    container.appendChild(swatch);
+  });
+
+  const endLabel = document.createElement("span");
+  endLabel.textContent = "Plus";
+  container.appendChild(endLabel);
 }
 
 function renderPrimaryChart(series) {
@@ -949,6 +1008,38 @@ function buildHeatmapTooltip(entry) {
   return `${formatDate(entry.date)}\n${formatWeight(entry.weight)} kg\nDiff: ${diffLabel}`;
 }
 
+function getHeatmapMonthLabel(weekStart, previousMonthKey, firstDate) {
+  const containsFirstDate = differenceInDays(weekStart, firstDate) <= 0 && differenceInDays(addDays(weekStart, 6), firstDate) >= 0;
+  const monthStartInWeek = Array.from({ length: 7 }, (_, offset) => addDays(weekStart, offset))
+    .find((date) => date.getUTCDate() === 1);
+  const labelDate = monthStartInWeek || (containsFirstDate ? firstDate : null);
+
+  if (!labelDate) {
+    return { text: "", key: previousMonthKey };
+  }
+
+  const labelKey = `${labelDate.getUTCFullYear()}-${labelDate.getUTCMonth()}`;
+
+  if (labelKey === previousMonthKey) {
+    return { text: "", key: previousMonthKey };
+  }
+
+  if (labelDate.getUTCMonth() === 0 || containsFirstDate && labelDate.getUTCFullYear() !== weekStart.getUTCFullYear()) {
+    return {
+      text: String(labelDate.getUTCFullYear()),
+      key: labelKey
+    };
+  }
+
+  return {
+    text: new Intl.DateTimeFormat("fr-FR", {
+      month: "short",
+      timeZone: "UTC"
+    }).format(labelDate),
+    key: labelKey
+  };
+}
+
 function setError(message) {
   const statusText = document.getElementById("statusText");
   statusText.textContent = message;
@@ -1014,6 +1105,16 @@ function addDays(date, days) {
 
 function differenceInDays(a, b) {
   return Math.round((a.getTime() - b.getTime()) / DAY_MS);
+}
+
+function startOfISOWeek(date) {
+  const day = (date.getUTCDay() + 6) % 7;
+  return addDays(date, -day);
+}
+
+function endOfISOWeek(date) {
+  const day = (date.getUTCDay() + 6) % 7;
+  return addDays(date, 6 - day);
 }
 
 function formatISODate(date) {
