@@ -113,7 +113,15 @@
       </div>
       <div class="projection-grid">
         <div class="projection-copy" id="projectionSummary">
-          <p class="projection-label">Tendance MA7</p>
+          <label class="chart-control">
+            <span class="chart-control-label">Base tendance</span>
+            <select id="projectionModeSelect" class="chart-select" aria-label="Base de calcul de la projection">
+              <option value="ma7" selected>MA7</option>
+              <option value="ma28">MA28</option>
+              <option value="all">Depuis le debut</option>
+            </select>
+          </label>
+          <p class="projection-label" id="projectionModeLabel">Tendance MA7</p>
           <strong class="projection-value">--</strong>
           <p class="projection-detail">En attente des donnees.</p>
         </div>

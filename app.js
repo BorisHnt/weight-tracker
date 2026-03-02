@@ -24,6 +24,23 @@ const CHART_RANGES = {
   "1y": 365,
   all: null
 };
+const PROJECTION_MODES = {
+  ma7: {
+    label: "MA7",
+    sourceKey: "ma7",
+    color: "#FFD700"
+  },
+  ma28: {
+    label: "MA28",
+    sourceKey: "ma28",
+    color: "#0C3C78"
+  },
+  all: {
+    label: "Depuis le debut",
+    sourceKey: "weight",
+    color: "#DD105E"
+  }
+};
 
 document.addEventListener("DOMContentLoaded", init);
 
@@ -55,11 +72,7 @@ async function init() {
 
     const weeklyLoss = computeWeeklyLoss(enrichedSeries);
     const rolling28 = compute28DayLoss(enrichedSeries);
-    const regressionPoints = enrichedSeries
-      .map((entry, index) => (Number.isFinite(entry.ma7) ? { x: index, y: entry.ma7, date: entry.date } : null))
-      .filter(Boolean);
-    const regression = linearRegression(regressionPoints);
-    const goalEstimate = estimateGoalDate(enrichedSeries, regression, POIDS_OBJECTIF);
+    const defaultProjection = getProjectionModel(enrichedSeries, "ma7");
 
     const latestEntry = getLatestValueEntry(enrichedSeries);
     const firstEntry = getFirstValueEntry(enrichedSeries);
@@ -71,12 +84,12 @@ async function init() {
       latestEntry,
       totalLoss,
       averageWeeklyRate,
-      goalEstimate
+      goalEstimate: defaultProjection.goalEstimate
     });
 
     renderPrimaryChart(enrichedSeries);
     setupBarsChartControls(enrichedSeries, weeklyLoss, rolling28);
-    renderProjection(enrichedSeries, regression, goalEstimate);
+    setupProjectionControls(enrichedSeries);
     renderHeatmap(enrichedSeries);
 
     statusText.textContent = `${records.length} mesures chargees du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
@@ -264,10 +277,10 @@ function linearRegression(points) {
   };
 }
 
-function estimateGoalDate(series, regression, targetWeight) {
+function estimateGoalDate(series, regression, targetWeight, sourceKey = "ma7") {
   const latestEntry = getLatestValueEntry(series);
-  const latestTrendEntry = [...series].reverse().find((entry) => Number.isFinite(entry.ma7));
-  const currentWeight = latestTrendEntry?.ma7 ?? latestEntry?.weight ?? null;
+  const latestTrendEntry = [...series].reverse().find((entry) => Number.isFinite(entry[sourceKey]));
+  const currentWeight = latestTrendEntry?.[sourceKey] ?? latestEntry?.weight ?? null;
 
   if (!latestEntry || currentWeight === null || !Number.isFinite(regression.slope)) {
     return {
@@ -310,6 +323,8 @@ function estimateGoalDate(series, regression, targetWeight) {
 function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate }) {
   const statsGrid = document.getElementById("statsGrid");
   const cards = Array.from(statsGrid.querySelectorAll(".stat-card"));
+  const displayedTotalChange = totalLoss === null ? null : -totalLoss;
+  const displayedAverageWeeklyRate = averageWeeklyRate === null ? null : -averageWeeklyRate;
 
   if (cards.length < 4) {
     return;
@@ -318,11 +333,22 @@ function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate }
   cards[0].querySelector(".stat-value").textContent = latestEntry ? `${formatWeight(latestEntry.weight)} kg` : "--";
   cards[0].querySelector(".stat-meta").textContent = latestEntry ? formatDate(latestEntry.date) : "Aucune mesure";
 
-  cards[1].querySelector(".stat-value").textContent = totalLoss === null ? "--" : `${formatSignedWeight(totalLoss)} kg`;
+  cards[1].querySelector(".stat-value").textContent = displayedTotalChange === null ? "--" : `${formatSignedWeight(displayedTotalChange)} kg`;
   cards[1].querySelector(".stat-meta").textContent = totalLoss === null ? "Donnees insuffisantes" : totalLoss >= 0 ? "Perte cumulee" : "Evolution cumulee";
 
-  cards[2].querySelector(".stat-value").textContent = averageWeeklyRate === null ? "--" : `${formatSignedWeight(averageWeeklyRate)} kg`;
+  cards[2].querySelector(".stat-value").textContent = displayedAverageWeeklyRate === null ? "--" : `${formatSignedWeight(displayedAverageWeeklyRate)} kg`;
   cards[2].querySelector(".stat-meta").textContent = averageWeeklyRate === null ? "Donnees insuffisantes" : "Moyenne sur la periode";
+
+  updateGoalStat(goalEstimate);
+}
+
+function updateGoalStat(goalEstimate) {
+  const statsGrid = document.getElementById("statsGrid");
+  const cards = Array.from(statsGrid.querySelectorAll(".stat-card"));
+
+  if (cards.length < 4) {
+    return;
+  }
 
   const goalValue = cards[3].querySelector(".stat-value");
   const goalMeta = cards[3].querySelector(".stat-meta");
@@ -686,11 +712,42 @@ function buildCandlesFromEntries(entries) {
   });
 }
 
-function renderProjection(series, regression, goalEstimate) {
+function setupProjectionControls(series) {
+  const select = document.getElementById("projectionModeSelect");
+
+  const update = () => {
+    const model = getProjectionModel(series, select.value);
+    renderProjection(series, model);
+    updateGoalStat(model.goalEstimate);
+  };
+
+  select.addEventListener("change", update);
+  update();
+}
+
+function getProjectionModel(series, modeKey = "ma7") {
+  const config = PROJECTION_MODES[modeKey] || PROJECTION_MODES.ma7;
+  const regressionPoints = series
+    .map((entry, index) => (Number.isFinite(entry[config.sourceKey]) ? { x: index, y: entry[config.sourceKey], date: entry.date } : null))
+    .filter(Boolean);
+  const regression = linearRegression(regressionPoints);
+  const goalEstimate = estimateGoalDate(series, regression, POIDS_OBJECTIF, config.sourceKey);
+
+  return {
+    ...config,
+    regression,
+    goalEstimate,
+    values: series.map((entry) => entry[config.sourceKey])
+  };
+}
+
+function renderProjection(series, model) {
   const summary = document.getElementById("projectionSummary");
+  const modeLabel = document.getElementById("projectionModeLabel");
   const latestEntry = getLatestValueEntry(series);
+  const { regression, goalEstimate } = model;
   const trendSeries = series.map((entry, index) => (
-    Number.isFinite(regression.slope) && Number.isFinite(regression.intercept) && Number.isFinite(entry.ma7)
+    Number.isFinite(regression.slope) && Number.isFinite(regression.intercept) && Number.isFinite(entry[model.sourceKey])
       ? regression.intercept + regression.slope * index
       : null
   ));
@@ -708,6 +765,7 @@ function renderProjection(series, regression, goalEstimate) {
     }
   }
 
+  modeLabel.textContent = `Tendance ${model.label}`;
   summary.querySelector(".projection-value").textContent = Number.isFinite(regression.slope)
     ? `${formatSignedWeight(regression.slope * 7)} kg / semaine`
     : "--";
@@ -725,17 +783,17 @@ function renderProjection(series, regression, goalEstimate) {
     ...series.map((entry) => entry.isoDate),
     ...futureProjection.map((entry) => entry.label)
   ];
-  const ma7Values = [...series.map((entry) => entry.ma7), ...new Array(futureProjection.length).fill(null)];
+  const sourceValues = [...model.values, ...new Array(futureProjection.length).fill(null)];
   const trendValues = [...trendSeries, ...futureProjection.map((entry) => entry.value)];
   const goalValues = labels.map(() => POIDS_OBJECTIF);
 
   drawLineChart(canvas, [
     {
-      label: "MA7",
-      values: ma7Values,
-      color: COLORS.ma7,
+      label: model.label,
+      values: sourceValues,
+      color: model.color,
       lineWidth: 2.4,
-      smooth: true,
+      smooth: model.sourceKey !== "weight",
       connectGaps: true
     },
     {
