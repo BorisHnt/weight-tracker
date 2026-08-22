@@ -6,13 +6,13 @@
   --title: #000000;
   --muted: rgba(87, 89, 91, 0.72);
   --border: #e8d1c5;
-  --accent-ui: #89d4ff;
+  --accent-ui: #e6b94f;
   --accent-ui-soft: #fff0be;
-  --raw: #89d4ff;
-  --ma7: #a0c878;
+  --raw: #e6b94f;
+  --ma7: #91aa72;
   --ma28: #ffb399;
-  --good: #a0c878;
-  --bad: #ffd400;
+  --good: #91aa72;
+  --bad: #e6b94f;
   --neutral: #b9a36b;
   --radius: 6px;
   --gap: 10px;
@@ -177,7 +177,7 @@ canvas {
 }
 
 .swatch-max {
-  background: var(--bad);
+  background: var(--ma28);
 }
 
 .swatch-min {

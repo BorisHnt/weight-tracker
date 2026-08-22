@@ -6,11 +6,11 @@ const COLORS = {
   text: "#57595B",
   muted: "rgba(87, 89, 91, 0.72)",
   border: "#E8D1C5",
-  raw: "#89D4FF",
-  ma7: "#A0C878",
+  raw: "#E6B94F",
+  ma7: "#91AA72",
   ma28: "#FFB399",
-  gain: "#FFD400",
-  loss: "#A0C878",
+  gain: "#E6B94F",
+  loss: "#91AA72",
   neutral: "#B9A36B",
   axis: "rgba(87, 89, 91, 0.22)",
   grid: "rgba(232, 209, 197, 0.62)"
@@ -553,7 +553,7 @@ function renderPrimaryChart(series) {
     {
       label: "Poids maximum",
       values: series.map(() => maxWeight),
-      color: COLORS.gain,
+      color: COLORS.ma28,
       lineWidth: 1.4,
       dash: [7, 5],
       smooth: false,
@@ -1002,7 +1002,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
           ? yForValue(0)
           : padding.top + plotHeight;
         context.save();
-        context.fillStyle = dataset.fillColor || "rgba(137, 212, 255, 0.1)";
+        context.fillStyle = dataset.fillColor || "rgba(230, 185, 79, 0.1)";
         context.beginPath();
         context.moveTo(segment[0].x, baseY);
         context.lineTo(segment[0].x, segment[0].y);
