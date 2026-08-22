@@ -189,19 +189,91 @@
     <section class="container section" aria-labelledby="heatmap-title">
       <div class="section-head">
         <div>
-          <h2 id="heatmap-title">Heatmap quotidienne</h2>
+          <h2 id="heatmap-title">Heatmaps</h2>
         </div>
       </div>
-      <div class="heatmap-frame">
-        <div class="heatmap-shell">
-          <div class="heatmap-y-axis" id="heatmapYAxis" aria-hidden="true"></div>
-          <div class="heatmap-scroll">
-            <div class="heatmap-months" id="heatmapMonths" aria-hidden="true"></div>
-            <div class="heatmap-grid" id="heatmapGrid"></div>
+      <div class="heatmaps-stack">
+        <article class="heatmap-panel">
+          <h3>Quotidienne</h3>
+          <div class="heatmap-frame">
+            <div class="heatmap-shell">
+              <div class="heatmap-y-axis" id="heatmapYAxis" aria-hidden="true"></div>
+              <div class="heatmap-scroll">
+                <div class="heatmap-months" id="heatmapMonths" aria-hidden="true"></div>
+                <div class="heatmap-grid" id="heatmapGrid"></div>
+              </div>
+            </div>
+            <div class="heatmap-legend" id="heatmapLegend" aria-hidden="true"></div>
+          </div>
+        </article>
+
+        <article class="heatmap-panel">
+          <h3>Hebdomadaire</h3>
+          <div class="heatmap-frame">
+            <div class="aggregate-heatmap-scroll">
+              <div class="aggregate-heatmap-grid weekly-heatmap-grid" id="weeklyHeatmapGrid"></div>
+            </div>
+            <div class="heatmap-legend" id="weeklyHeatmapLegend" aria-hidden="true"></div>
+          </div>
+        </article>
+
+        <article class="heatmap-panel">
+          <h3>Mensuelle</h3>
+          <div class="heatmap-frame">
+            <div class="aggregate-heatmap-scroll">
+              <div class="aggregate-heatmap-grid monthly-heatmap-grid" id="monthlyHeatmapGrid"></div>
+            </div>
+            <div class="heatmap-legend" id="monthlyHeatmapLegend" aria-hidden="true"></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="monthly-analysis-title">
+      <div class="section-head">
+        <div>
+          <h2 id="monthly-analysis-title">Analyse mensuelle</h2>
+        </div>
+      </div>
+
+      <article class="analysis-panel">
+        <div class="analysis-panel-head">
+          <div>
+            <h3>Petites courbes mensuelles</h3>
+            <p>Chaque mois commence à 0 kg pour comparer les trajectoires.</p>
           </div>
         </div>
-        <div class="heatmap-legend" id="heatmapLegend" aria-hidden="true"></div>
-      </div>
+        <div class="monthly-sparklines-grid" id="monthlySparklines"></div>
+      </article>
+
+      <article class="analysis-panel">
+        <div class="analysis-panel-head">
+          <div>
+            <h3>Bilan mensuel en cascade</h3>
+            <p>Les variations mensuelles s'enchaînent jusqu'au bilan total.</p>
+          </div>
+        </div>
+        <div class="svg-chart-scroll">
+          <svg class="monthly-chart" id="monthlyWaterfallChart" role="img" aria-label="Bilan mensuel en cascade"></svg>
+        </div>
+      </article>
+
+      <article class="analysis-panel">
+        <div class="analysis-panel-head range-panel-head">
+          <div>
+            <h3>Plage mensuelle</h3>
+            <p>Minimum, maximum, poids de début et poids de fin pour chaque mois.</p>
+          </div>
+          <div class="range-legend" aria-hidden="true">
+            <span><i class="range-swatch"></i>Min.–max.</span>
+            <span><i class="range-dot range-dot-start"></i>Début</span>
+            <span><i class="range-dot range-dot-end"></i>Fin</span>
+          </div>
+        </div>
+        <div class="svg-chart-scroll">
+          <svg class="monthly-chart" id="monthlyRangeChart" role="img" aria-label="Plage de poids mensuelle"></svg>
+        </div>
+      </article>
     </section>
   </main>
 

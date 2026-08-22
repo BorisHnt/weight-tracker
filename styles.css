@@ -423,6 +423,28 @@ canvas {
   gap: 10px;
 }
 
+.heatmaps-stack {
+  display: grid;
+  gap: var(--gap);
+}
+
+.heatmap-panel,
+.analysis-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.heatmap-panel h3,
+.analysis-panel h3 {
+  margin: 0;
+  color: var(--title);
+  font-size: 1rem;
+}
+
 :root {
   --heat-cell: 13px;
   --heat-gap: 4px;
@@ -556,6 +578,167 @@ canvas {
   height: 100%;
 }
 
+.aggregate-heatmap-scroll,
+.svg-chart-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px;
+}
+
+.aggregate-heatmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  gap: 5px;
+  min-width: max-content;
+}
+
+.weekly-heatmap-grid {
+  grid-auto-flow: row;
+  grid-template-columns: repeat(13, 48px);
+  grid-auto-rows: 34px;
+}
+
+.monthly-heatmap-grid {
+  grid-auto-columns: 68px;
+  grid-template-rows: 38px;
+}
+
+.aggregate-heatmap-cell {
+  appearance: none;
+  display: grid;
+  place-items: center;
+  padding: 3px;
+  color: var(--title);
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  cursor: pointer;
+  transition: transform 160ms ease, border-color 160ms ease;
+}
+
+.aggregate-heatmap-cell:hover {
+  z-index: 1;
+  border-color: var(--title);
+  transform: translateY(-2px);
+}
+
+.aggregate-heatmap-cell:focus-visible {
+  outline: 2px solid var(--accent-ui);
+  outline-offset: 1px;
+}
+
+.aggregate-heatmap-cell.is-missing {
+  color: var(--muted);
+  background: rgba(232, 209, 197, 0.22);
+  border-style: dashed;
+}
+
+.analysis-panel-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.analysis-panel-head p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.monthly-sparklines-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.month-spark-card {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 9px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.month-spark-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.month-spark-label {
+  color: var(--title);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.month-spark-change {
+  color: var(--text);
+  font-size: 0.76rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.month-spark-svg {
+  display: block;
+  width: 100%;
+  height: 62px;
+}
+
+.monthly-chart {
+  display: block;
+  height: 280px;
+  min-width: 680px;
+}
+
+.monthly-chart text {
+  fill: var(--muted);
+  font-family: "Avenir Next", "Segoe UI", "Helvetica Neue", sans-serif;
+  font-size: 10px;
+}
+
+.range-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.range-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.range-swatch {
+  width: 14px;
+  height: 2px;
+  background: var(--text);
+}
+
+.range-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.range-dot-start {
+  background: var(--raw);
+}
+
+.range-dot-end {
+  background: var(--ma28);
+}
+
 .tooltip {
   position: fixed;
   z-index: 10;
@@ -591,6 +774,10 @@ canvas {
 
   .insights-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .monthly-sparklines-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .projection-grid {

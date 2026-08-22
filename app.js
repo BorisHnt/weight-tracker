@@ -81,6 +81,8 @@ async function init() {
       ma28: ma28[index],
       diff: computeDailyDiff(series, index)
     }));
+    const weeklyPeriods = buildWeeklyPeriods(enrichedSeries);
+    const monthlyPeriods = buildMonthlyPeriods(enrichedSeries);
 
     const defaultProjection = getProjectionModel(enrichedSeries, "ma7");
 
@@ -102,6 +104,9 @@ async function init() {
     setupBarsChartControls(enrichedSeries);
     setupProjectionControls(enrichedSeries);
     renderHeatmap(enrichedSeries);
+    renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend");
+    renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend");
+    renderMonthlyAnalysis(monthlyPeriods);
 
     statusText.textContent = `${records.length} mesures chargées du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
   } catch (error) {
@@ -551,40 +556,12 @@ function renderHeatmap(series) {
     cell.setAttribute("aria-label", cell.dataset.tooltip.replace(/\n/g, ", "));
     cell.appendChild(fill);
 
-    cell.addEventListener("mouseenter", showTooltip);
-    cell.addEventListener("mousemove", moveTooltip);
-    cell.addEventListener("mouseleave", hideTooltip);
-    cell.addEventListener("focus", showTooltip);
-    cell.addEventListener("blur", hideTooltip);
+    bindTooltip(cell, tooltip);
 
     grid.appendChild(cell);
   }
 
   renderHeatmapLegend(legend);
-
-  function showTooltip(event) {
-    const content = event.currentTarget.dataset.tooltip;
-    if (!content) {
-      return;
-    }
-
-    tooltip.textContent = content;
-    tooltip.hidden = false;
-    moveTooltip(event);
-  }
-
-  function moveTooltip(event) {
-    const x = event.clientX ?? event.currentTarget.getBoundingClientRect().left + 12;
-    const y = event.clientY ?? event.currentTarget.getBoundingClientRect().top + 12;
-    const left = Math.min(window.innerWidth - tooltip.offsetWidth - 12, x + 12);
-    const top = Math.min(window.innerHeight - tooltip.offsetHeight - 12, y + 12);
-    tooltip.style.left = `${Math.max(12, left)}px`;
-    tooltip.style.top = `${Math.max(12, top)}px`;
-  }
-
-  function hideTooltip() {
-    tooltip.hidden = true;
-  }
 }
 
 function renderHeatmapLegend(container) {
@@ -618,6 +595,458 @@ function getHeatmapColorIndex(diff, maxLoss, maxGain) {
 
   const intensity = maxGain > 0 ? Math.min(1, diff / maxGain) : 0;
   return 4 + Math.max(1, Math.ceil(intensity * 4));
+}
+
+function buildWeeklyPeriods(series) {
+  const buckets = new Map();
+  const measuredEntries = series.filter((entry) => Number.isFinite(entry.weight));
+
+  if (!measuredEntries.length) {
+    return [];
+  }
+
+  measuredEntries.forEach((entry) => {
+    const weekStart = startOfISOWeek(entry.date);
+    const key = formatISODate(weekStart);
+    let bucket = buckets.get(key);
+
+    if (!bucket) {
+      bucket = {
+        key,
+        entries: []
+      };
+      buckets.set(key, bucket);
+    }
+
+    bucket.entries.push(entry);
+  });
+
+  const periods = [];
+  const firstWeek = startOfISOWeek(measuredEntries[0].date);
+  const lastWeek = startOfISOWeek(measuredEntries[measuredEntries.length - 1].date);
+
+  for (let weekStart = firstWeek; weekStart <= lastWeek; weekStart = addDays(weekStart, 7)) {
+    const key = formatISODate(weekStart);
+    const labels = getWeeklyPeriodLabels(weekStart);
+    const bucket = buckets.get(key);
+
+    periods.push(bucket
+      ? finalizePeriod({ ...bucket, ...labels })
+      : {
+          key,
+          ...labels,
+          entries: [],
+          change: null,
+          isMissing: true
+        });
+  }
+
+  return periods;
+}
+
+function getWeeklyPeriodLabels(weekStart) {
+  return {
+    label: `S${String(getISOWeekNumber(weekStart)).padStart(2, "0")}`,
+    fullLabel: `Semaine du ${formatDate(weekStart)} au ${formatDate(addDays(weekStart, 6))}`
+  };
+}
+
+function buildMonthlyPeriods(series) {
+  const buckets = new Map();
+
+  series.forEach((entry) => {
+    if (!Number.isFinite(entry.weight)) {
+      return;
+    }
+
+    const key = `${entry.date.getUTCFullYear()}-${String(entry.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    let bucket = buckets.get(key);
+
+    if (!bucket) {
+      bucket = {
+        key,
+        label: new Intl.DateTimeFormat("fr-FR", {
+          month: "short",
+          year: "2-digit",
+          timeZone: "UTC"
+        }).format(entry.date),
+        fullLabel: new Intl.DateTimeFormat("fr-FR", {
+          month: "long",
+          year: "numeric",
+          timeZone: "UTC"
+        }).format(entry.date),
+        entries: []
+      };
+      buckets.set(key, bucket);
+    }
+
+    bucket.entries.push(entry);
+  });
+
+  return Array.from(buckets.values()).map(finalizePeriod);
+}
+
+function finalizePeriod(period) {
+  const firstEntry = period.entries[0];
+  const lastEntry = period.entries[period.entries.length - 1];
+  const weights = period.entries.map((entry) => entry.weight);
+
+  return {
+    ...period,
+    startDate: firstEntry.date,
+    endDate: lastEntry.date,
+    startWeight: firstEntry.weight,
+    endWeight: lastEntry.weight,
+    minWeight: Math.min(...weights),
+    maxWeight: Math.max(...weights),
+    change: sanitizeNumber(lastEntry.weight - firstEntry.weight)
+  };
+}
+
+function renderAggregateHeatmap(periods, gridId, legendId) {
+  const grid = document.getElementById(gridId);
+  const legend = document.getElementById(legendId);
+  const tooltip = document.getElementById("tooltip");
+
+  grid.replaceChildren();
+  legend.replaceChildren();
+
+  const maxLoss = periods.reduce((maximum, period) => (
+    Number.isFinite(period.change) && period.change < 0 ? Math.max(maximum, Math.abs(period.change)) : maximum
+  ), 0);
+  const maxGain = periods.reduce((maximum, period) => (
+    Number.isFinite(period.change) && period.change > 0 ? Math.max(maximum, period.change) : maximum
+  ), 0);
+
+  periods.forEach((period) => {
+    const cell = document.createElement("button");
+    const tooltipText = period.isMissing
+      ? `${period.fullLabel}\nAucune mesure`
+      : `${period.fullLabel}\nDépart : ${formatWeight(period.startWeight)} kg\nFin : ${formatWeight(period.endWeight)} kg\nVariation : ${formatSignedWeight(period.change)} kg`;
+
+    cell.type = "button";
+    cell.className = "aggregate-heatmap-cell";
+    cell.textContent = period.label;
+    if (period.isMissing) {
+      cell.classList.add("is-missing");
+    } else {
+      cell.style.backgroundColor = HEATMAP_COLORS[getHeatmapColorIndex(period.change, maxLoss, maxGain)];
+    }
+    cell.dataset.tooltip = tooltipText;
+    cell.setAttribute("aria-label", tooltipText.replace(/\n/g, ", "));
+    bindTooltip(cell, tooltip);
+    grid.appendChild(cell);
+  });
+
+  renderHeatmapLegend(legend);
+}
+
+function bindTooltip(element, tooltip) {
+  const show = (event) => {
+    const content = event.currentTarget.dataset.tooltip;
+
+    if (!content) {
+      return;
+    }
+
+    tooltip.textContent = content;
+    tooltip.hidden = false;
+    move(event);
+  };
+  const move = (event) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    const x = Number.isFinite(event.clientX) && event.clientX > 0 ? event.clientX : bounds.left + 12;
+    const y = Number.isFinite(event.clientY) && event.clientY > 0 ? event.clientY : bounds.top + 12;
+    const left = Math.min(window.innerWidth - tooltip.offsetWidth - 12, x + 12);
+    const top = Math.min(window.innerHeight - tooltip.offsetHeight - 12, y + 12);
+
+    tooltip.style.left = `${Math.max(12, left)}px`;
+    tooltip.style.top = `${Math.max(12, top)}px`;
+  };
+  const hide = () => {
+    tooltip.hidden = true;
+  };
+
+  element.addEventListener("mouseenter", show);
+  element.addEventListener("mousemove", move);
+  element.addEventListener("mouseleave", hide);
+  element.addEventListener("focus", show);
+  element.addEventListener("blur", hide);
+}
+
+function renderMonthlyAnalysis(periods) {
+  renderMonthlySparklines(periods);
+  renderMonthlyWaterfall(periods);
+  renderMonthlyRanges(periods);
+}
+
+function renderMonthlySparklines(periods) {
+  const container = document.getElementById("monthlySparklines");
+  const maxDeviation = Math.max(0.5, ...periods.flatMap((period) => (
+    period.entries.map((entry) => Math.abs(entry.weight - period.startWeight))
+  )));
+
+  container.replaceChildren();
+
+  periods.forEach((period) => {
+    const card = document.createElement("article");
+    const header = document.createElement("div");
+    const label = document.createElement("span");
+    const change = document.createElement("span");
+    const svg = createSvgElement("svg", {
+      class: "month-spark-svg",
+      viewBox: "0 0 180 62",
+      role: "img",
+      "aria-label": `${period.fullLabel}, variation ${formatSignedWeight(period.change)} kg`
+    });
+    const points = period.entries.map((entry, index) => {
+      const x = 5 + (period.entries.length <= 1 ? 85 : (index / (period.entries.length - 1)) * 170);
+      const relativeWeight = entry.weight - period.startWeight;
+      const y = 31 - (relativeWeight / maxDeviation) * 25;
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    const lineColor = period.change <= 0 ? COLORS.loss : COLORS.ma28;
+
+    card.className = "month-spark-card";
+    header.className = "month-spark-head";
+    label.className = "month-spark-label";
+    change.className = "month-spark-change";
+    label.textContent = period.fullLabel;
+    change.textContent = `${formatSignedWeight(period.change)} kg`;
+    header.append(label, change);
+
+    svg.appendChild(createSvgElement("line", {
+      x1: "5",
+      y1: "31",
+      x2: "175",
+      y2: "31",
+      stroke: COLORS.grid,
+      "stroke-width": "1"
+    }));
+    svg.appendChild(createSvgElement("polyline", {
+      points: points.join(" "),
+      fill: "none",
+      stroke: lineColor,
+      "stroke-width": "2.5",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round"
+    }));
+
+    if (points.length) {
+      const [endX, endY] = points[points.length - 1].split(",");
+      svg.appendChild(createSvgElement("circle", {
+        cx: endX,
+        cy: endY,
+        r: "3",
+        fill: lineColor
+      }));
+    }
+
+    card.append(header, svg);
+    container.appendChild(card);
+  });
+}
+
+function renderMonthlyWaterfall(periods) {
+  const svg = document.getElementById("monthlyWaterfallChart");
+  const width = Math.max(680, (periods.length + 1) * 70 + 70);
+  const height = 280;
+  const padding = { top: 18, right: 18, bottom: 42, left: 50 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  let cumulative = 0;
+  const steps = periods.map((period) => {
+    const start = cumulative;
+    cumulative += period.change;
+    return { ...period, waterfallStart: start, waterfallEnd: cumulative };
+  });
+  const chartItems = [
+    ...steps,
+    {
+      label: "Total",
+      fullLabel: "Bilan total",
+      change: cumulative,
+      waterfallStart: 0,
+      waterfallEnd: cumulative,
+      isTotal: true
+    }
+  ];
+  const domainValues = chartItems.flatMap((item) => [item.waterfallStart, item.waterfallEnd]);
+  let minValue = Math.min(0, ...domainValues);
+  let maxValue = Math.max(0, ...domainValues);
+  const domainPadding = (maxValue - minValue || 1) * 0.12;
+
+  minValue -= domainPadding;
+  maxValue += domainPadding;
+
+  const yForValue = (value) => padding.top + plotHeight - ((value - minValue) / (maxValue - minValue)) * plotHeight;
+  const slotWidth = plotWidth / chartItems.length;
+  const barWidth = Math.min(34, slotWidth * 0.58);
+
+  prepareSvgChart(svg, width, height);
+  drawSvgYAxis(svg, { width, height, padding, minValue, maxValue, yForValue, formatter: (value) => `${formatSignedWeight(value)} kg` });
+
+  steps.forEach((step, index) => {
+    const centerX = padding.left + slotWidth * index + slotWidth / 2;
+    const nextCenterX = padding.left + slotWidth * (index + 1) + slotWidth / 2;
+    const connectorY = yForValue(step.waterfallEnd);
+
+    svg.appendChild(createSvgElement("line", {
+      x1: (centerX + barWidth / 2).toFixed(1),
+      y1: connectorY.toFixed(1),
+      x2: (nextCenterX - barWidth / 2).toFixed(1),
+      y2: connectorY.toFixed(1),
+      stroke: COLORS.border,
+      "stroke-width": "1.5",
+      "stroke-dasharray": "3 3"
+    }));
+  });
+
+  chartItems.forEach((item, index) => {
+    const centerX = padding.left + slotWidth * index + slotWidth / 2;
+    const startY = yForValue(item.waterfallStart);
+    const endY = yForValue(item.waterfallEnd);
+    const group = createSvgElement("g");
+    const title = createSvgElement("title");
+
+    title.textContent = `${item.fullLabel} : ${formatSignedWeight(item.change)} kg`;
+    group.appendChild(title);
+    group.appendChild(createSvgElement("rect", {
+      x: (centerX - barWidth / 2).toFixed(1),
+      y: Math.min(startY, endY).toFixed(1),
+      width: barWidth.toFixed(1),
+      height: Math.max(2, Math.abs(endY - startY)).toFixed(1),
+      rx: "3",
+      fill: item.change <= 0 ? COLORS.loss : COLORS.ma28,
+      stroke: item.isTotal ? COLORS.text : "none",
+      "stroke-width": item.isTotal ? "1" : "0"
+    }));
+    group.appendChild(createSvgElement("text", {
+      x: centerX.toFixed(1),
+      y: (padding.top + plotHeight + 17).toFixed(1),
+      "text-anchor": "middle"
+    }, item.label));
+    svg.appendChild(group);
+  });
+}
+
+function renderMonthlyRanges(periods) {
+  const svg = document.getElementById("monthlyRangeChart");
+  const width = Math.max(680, periods.length * 70 + 70);
+  const height = 280;
+  const padding = { top: 18, right: 18, bottom: 42, left: 50 };
+  const plotWidth = width - padding.left - padding.right;
+  const plotHeight = height - padding.top - padding.bottom;
+  let minValue = Math.min(...periods.map((period) => period.minWeight));
+  let maxValue = Math.max(...periods.map((period) => period.maxWeight));
+  const domainPadding = (maxValue - minValue || 1) * 0.08;
+
+  minValue -= domainPadding;
+  maxValue += domainPadding;
+
+  const yForValue = (value) => padding.top + plotHeight - ((value - minValue) / (maxValue - minValue)) * plotHeight;
+  const slotWidth = plotWidth / Math.max(periods.length, 1);
+
+  prepareSvgChart(svg, width, height);
+  drawSvgYAxis(svg, { width, height, padding, minValue, maxValue, yForValue, formatter: (value) => `${formatWeight(value)} kg` });
+
+  periods.forEach((period, index) => {
+    const centerX = padding.left + slotWidth * index + slotWidth / 2;
+    const minY = yForValue(period.minWeight);
+    const maxY = yForValue(period.maxWeight);
+    const group = createSvgElement("g");
+    const title = createSvgElement("title");
+
+    title.textContent = `${period.fullLabel} : min. ${formatWeight(period.minWeight)} kg, max. ${formatWeight(period.maxWeight)} kg, début ${formatWeight(period.startWeight)} kg, fin ${formatWeight(period.endWeight)} kg`;
+    group.appendChild(title);
+    group.appendChild(createSvgElement("line", {
+      x1: centerX.toFixed(1),
+      y1: maxY.toFixed(1),
+      x2: centerX.toFixed(1),
+      y2: minY.toFixed(1),
+      stroke: COLORS.text,
+      "stroke-width": "2",
+      "stroke-linecap": "round"
+    }));
+    [minY, maxY].forEach((y) => {
+      group.appendChild(createSvgElement("line", {
+        x1: (centerX - 5).toFixed(1),
+        y1: y.toFixed(1),
+        x2: (centerX + 5).toFixed(1),
+        y2: y.toFixed(1),
+        stroke: COLORS.text,
+        "stroke-width": "2"
+      }));
+    });
+    group.appendChild(createSvgElement("circle", {
+      cx: (centerX - 4).toFixed(1),
+      cy: yForValue(period.startWeight).toFixed(1),
+      r: "4",
+      fill: COLORS.raw,
+      stroke: "#FFFFFF",
+      "stroke-width": "1"
+    }));
+    group.appendChild(createSvgElement("circle", {
+      cx: (centerX + 4).toFixed(1),
+      cy: yForValue(period.endWeight).toFixed(1),
+      r: "4",
+      fill: COLORS.ma28,
+      stroke: "#FFFFFF",
+      "stroke-width": "1"
+    }));
+    group.appendChild(createSvgElement("text", {
+      x: centerX.toFixed(1),
+      y: (padding.top + plotHeight + 17).toFixed(1),
+      "text-anchor": "middle"
+    }, period.label));
+    svg.appendChild(group);
+  });
+}
+
+function prepareSvgChart(svg, width, height) {
+  svg.replaceChildren();
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.setAttribute("width", String(width));
+  svg.setAttribute("height", String(height));
+  svg.style.width = `${width}px`;
+}
+
+function drawSvgYAxis(svg, { width, padding, minValue, maxValue, yForValue, formatter }) {
+  const ticks = 4;
+
+  for (let index = 0; index <= ticks; index += 1) {
+    const ratio = index / ticks;
+    const value = minValue + (maxValue - minValue) * ratio;
+    const y = yForValue(value);
+
+    svg.appendChild(createSvgElement("line", {
+      x1: padding.left,
+      y1: y.toFixed(1),
+      x2: width - padding.right,
+      y2: y.toFixed(1),
+      stroke: COLORS.grid,
+      "stroke-width": "1"
+    }));
+    svg.appendChild(createSvgElement("text", {
+      x: padding.left - 8,
+      y: (y + 3).toFixed(1),
+      "text-anchor": "end"
+    }, formatter(value)));
+  }
+}
+
+function createSvgElement(name, attributes = {}, text = "") {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", name);
+
+  Object.entries(attributes).forEach(([key, value]) => {
+    element.setAttribute(key, String(value));
+  });
+
+  if (text) {
+    element.textContent = text;
+  }
+
+  return element;
 }
 
 function renderPrimaryChart(series) {
@@ -1560,4 +1989,14 @@ function endOfISOWeek(date) {
 
 function formatISODate(date) {
   return date.toISOString().slice(0, 10);
+}
+
+function getISOWeekNumber(date) {
+  const temp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = temp.getUTCDay() || 7;
+
+  temp.setUTCDate(temp.getUTCDate() + 4 - day);
+
+  const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
+  return Math.ceil((((temp - yearStart) / DAY_MS) + 1) / 7);
 }
