@@ -6,10 +6,10 @@ const COLORS = {
   text: "#57595B",
   muted: "rgba(87, 89, 91, 0.72)",
   border: "#E8D1C5",
-  raw: "#FFE66D",
+  raw: "#FFEA80",
   ma7: "#B8E36F",
   ma28: "#FFB399",
-  gain: "#FFE66D",
+  gain: "#FFEA80",
   loss: "#B8E36F",
   neutral: "#B9A36B",
   axis: "rgba(87, 89, 91, 0.22)",
@@ -368,7 +368,7 @@ function updateGoalStat(goalEstimate) {
 
 function renderOverviewVisuals(series, firstEntry, latestEntry) {
   renderGoalProgress(firstEntry, latestEntry);
-  renderMilestones(series, firstEntry, latestEntry);
+  renderRegularity(series, latestEntry);
   renderMonthlySummary(series, latestEntry);
   renderCurrentContext(series, latestEntry);
 }
@@ -403,43 +403,35 @@ function renderGoalProgress(firstEntry, latestEntry) {
   track.setAttribute("aria-valuenow", progress.toFixed(1));
 }
 
-function renderMilestones(series, firstEntry, latestEntry) {
-  const list = document.getElementById("milestonesList");
-  const count = document.getElementById("milestonesCount");
-  const detail = document.getElementById("milestonesDetail");
-  const measuredWeights = series.map((entry) => entry.weight).filter(Number.isFinite);
+function renderRegularity(series, latestEntry) {
+  const count = document.getElementById("regularityCount");
+  const percent = document.getElementById("regularityPercent");
+  const detail = document.getElementById("regularityDetail");
+  const ring = document.getElementById("regularityRing");
 
-  list.replaceChildren();
-
-  if (!firstEntry || !latestEntry || !measuredWeights.length) {
-    count.textContent = "--";
-    detail.textContent = "Donnees insuffisantes.";
+  if (!latestEntry) {
     return;
   }
 
-  const historicalMin = Math.min(...measuredWeights);
-  const greatestLoss = Math.max(0, firstEntry.weight - historicalMin);
-  const achievedCount = Math.floor((greatestLoss + 0.0001) / 5);
+  const cutoff = addDays(latestEntry.date, -27);
+  const recentEntries = series.filter((entry) => (
+    entry.date >= cutoff
+    && entry.date <= latestEntry.date
+    && Number.isFinite(entry.weight)
+  ));
+  const measuredDates = new Set(recentEntries.map((entry) => entry.isoDate));
+  const regularity = Math.min(100, (measuredDates.size / 28) * 100);
+  let streak = 0;
 
-  for (let index = 1; index <= achievedCount; index += 1) {
-    const chip = document.createElement("span");
-    chip.className = "milestone-chip";
-    chip.textContent = `-${index * 5} kg`;
-    list.appendChild(chip);
+  for (let cursor = latestEntry.date; measuredDates.has(formatISODate(cursor)); cursor = addDays(cursor, -1)) {
+    streak += 1;
   }
 
-  const nextMilestone = (achievedCount + 1) * 5;
-  const nextChip = document.createElement("span");
-  nextChip.className = "milestone-chip is-next";
-  nextChip.textContent = `Prochain : -${nextMilestone} kg`;
-  list.appendChild(nextChip);
-
-  const nextWeight = firstEntry.weight - nextMilestone;
-  const remaining = Math.max(0, latestEntry.weight - nextWeight);
-  count.textContent = `${achievedCount}`;
-  detail.textContent = achievedCount
-    ? `Meilleur niveau : -${formatWeight(greatestLoss)} kg. Prochain jalon dans ${formatWeight(remaining)} kg.`
-    : `Premier jalon dans ${formatWeight(remaining)} kg.`;
+  count.textContent = `${measuredDates.size} / 28`;
+  percent.textContent = `${Math.round(regularity)} %`;
+  detail.textContent = `${measuredDates.size} pesées sur les 28 derniers jours. Série actuelle : ${streak} jour${streak > 1 ? "s" : ""}.`;
+  ring.style.setProperty("--regularity", `${regularity}%`);
+  ring.setAttribute("aria-valuenow", regularity.toFixed(1));
 }
 
 function renderMonthlySummary(series, latestEntry) {
@@ -1152,7 +1144,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
           ? yForValue(0)
           : padding.top + plotHeight;
         context.save();
-        context.fillStyle = dataset.fillColor || "rgba(255, 230, 109, 0.1)";
+        context.fillStyle = dataset.fillColor || "rgba(255, 234, 128, 0.1)";
         context.beginPath();
         context.moveTo(segment[0].x, baseY);
         context.lineTo(segment[0].x, segment[0].y);

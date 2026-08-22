@@ -70,11 +70,15 @@
 
         <article class="visual-card">
           <div class="visual-card-head">
-            <h3>Jalons franchis</h3>
-            <strong class="visual-value" id="milestonesCount">--</strong>
+            <h3>Régularité sur 28 jours</h3>
+            <strong class="visual-value" id="regularityCount">-- / 28</strong>
           </div>
-          <div class="milestones-list" id="milestonesList" aria-live="polite"></div>
-          <p class="visual-detail" id="milestonesDetail">En attente des donnees.</p>
+          <div class="regularity-content">
+            <div class="regularity-ring" id="regularityRing" role="progressbar" aria-label="Régularité des pesées sur 28 jours" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <strong id="regularityPercent">-- %</strong>
+            </div>
+            <p class="visual-detail" id="regularityDetail">En attente des donnees.</p>
+          </div>
         </article>
 
         <article class="visual-card">
