@@ -247,14 +247,18 @@
       </article>
 
       <article class="analysis-panel">
-        <div class="analysis-panel-head">
+        <div class="analysis-panel-head range-panel-head">
           <div>
-            <h3>Bilan mensuel en cascade</h3>
-            <p>Les variations mensuelles s'enchaînent jusqu'au bilan total.</p>
+            <h3>Ruban d'écart à la MA28</h3>
+            <p>Écart du poids à la moyenne mobile sur 28 jours.</p>
+          </div>
+          <div class="range-legend" aria-hidden="true">
+            <span><i class="range-dot deviation-dot-below"></i>Sous la MA28</span>
+            <span><i class="range-dot deviation-dot-above"></i>Au-dessus</span>
           </div>
         </div>
         <div class="svg-chart-scroll">
-          <svg class="monthly-chart" id="monthlyWaterfallChart" role="img" aria-label="Bilan mensuel en cascade"></svg>
+          <svg class="monthly-chart" id="ma28DeviationChart" role="img" aria-label="Ruban d'écart du poids à la moyenne mobile sur 28 jours"></svg>
         </div>
       </article>
 

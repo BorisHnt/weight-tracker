@@ -106,7 +106,7 @@ async function init() {
     renderHeatmap(enrichedSeries);
     renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend");
     renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend");
-    renderMonthlyAnalysis(monthlyPeriods);
+    renderMonthlyAnalysis(enrichedSeries, monthlyPeriods);
 
     statusText.textContent = `${records.length} mesures chargées du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
   } catch (error) {
@@ -774,9 +774,9 @@ function bindTooltip(element, tooltip) {
   element.addEventListener("blur", hide);
 }
 
-function renderMonthlyAnalysis(periods) {
+function renderMonthlyAnalysis(series, periods) {
   renderMonthlySparklines(periods);
-  renderMonthlyWaterfall(periods);
+  renderMa28DeviationRibbon(series);
   renderMonthlyRanges(periods);
 }
 
@@ -847,86 +847,126 @@ function renderMonthlySparklines(periods) {
   });
 }
 
-function renderMonthlyWaterfall(periods) {
-  const svg = document.getElementById("monthlyWaterfallChart");
-  const width = Math.max(680, (periods.length + 1) * 70 + 70);
+function renderMa28DeviationRibbon(series) {
+  const svg = document.getElementById("ma28DeviationChart");
+  const points = series
+    .map((entry, index) => ({
+      entry,
+      index,
+      deviation: Number.isFinite(entry.weight) && Number.isFinite(entry.ma28)
+        ? entry.weight - entry.ma28
+        : null
+    }))
+    .filter((point) => Number.isFinite(point.deviation));
+  const width = Math.max(680, series.length * 2.6 + 70);
   const height = 280;
-  const padding = { top: 18, right: 18, bottom: 42, left: 50 };
+  const padding = { top: 18, right: 18, bottom: 36, left: 50 };
   const plotWidth = width - padding.left - padding.right;
   const plotHeight = height - padding.top - padding.bottom;
-  let cumulative = 0;
-  const steps = periods.map((period) => {
-    const start = cumulative;
-    cumulative += period.change;
-    return { ...period, waterfallStart: start, waterfallEnd: cumulative };
-  });
-  const chartItems = [
-    ...steps,
-    {
-      label: "Total",
-      fullLabel: "Bilan total",
-      change: cumulative,
-      waterfallStart: 0,
-      waterfallEnd: cumulative,
-      isTotal: true
-    }
-  ];
-  const domainValues = chartItems.flatMap((item) => [item.waterfallStart, item.waterfallEnd]);
-  let minValue = Math.min(0, ...domainValues);
-  let maxValue = Math.max(0, ...domainValues);
-  const domainPadding = (maxValue - minValue || 1) * 0.12;
-
-  minValue -= domainPadding;
-  maxValue += domainPadding;
-
-  const yForValue = (value) => padding.top + plotHeight - ((value - minValue) / (maxValue - minValue)) * plotHeight;
-  const slotWidth = plotWidth / chartItems.length;
-  const barWidth = Math.min(34, slotWidth * 0.58);
+  const zeroY = padding.top + plotHeight / 2;
+  const maxDeviation = Math.max(0.5, ...points.map((point) => Math.abs(point.deviation)));
+  const xForIndex = (index) => padding.left + (series.length <= 1 ? plotWidth / 2 : (index / (series.length - 1)) * plotWidth);
+  const yForDeviation = (deviation) => zeroY - (deviation / maxDeviation) * (plotHeight / 2 - 8);
 
   prepareSvgChart(svg, width, height);
-  drawSvgYAxis(svg, { width, height, padding, minValue, maxValue, yForValue, formatter: (value) => `${formatSignedWeight(value)} kg` });
 
-  steps.forEach((step, index) => {
-    const centerX = padding.left + slotWidth * index + slotWidth / 2;
-    const nextCenterX = padding.left + slotWidth * (index + 1) + slotWidth / 2;
-    const connectorY = yForValue(step.waterfallEnd);
+  if (!points.length) {
+    svg.appendChild(createSvgElement("text", {
+      x: width / 2,
+      y: height / 2,
+      "text-anchor": "middle"
+    }, "Données insuffisantes"));
+    return;
+  }
 
+  [padding.top + 8, zeroY, padding.top + plotHeight - 8].forEach((y, index) => {
     svg.appendChild(createSvgElement("line", {
-      x1: (centerX + barWidth / 2).toFixed(1),
-      y1: connectorY.toFixed(1),
-      x2: (nextCenterX - barWidth / 2).toFixed(1),
-      y2: connectorY.toFixed(1),
-      stroke: COLORS.border,
-      "stroke-width": "1.5",
-      "stroke-dasharray": "3 3"
+      x1: padding.left,
+      y1: y.toFixed(1),
+      x2: width - padding.right,
+      y2: y.toFixed(1),
+      stroke: index === 1 ? COLORS.axis : COLORS.grid,
+      "stroke-width": index === 1 ? "1.5" : "1",
+      "stroke-dasharray": index === 1 ? "5 4" : "none"
     }));
   });
 
-  chartItems.forEach((item, index) => {
-    const centerX = padding.left + slotWidth * index + slotWidth / 2;
-    const startY = yForValue(item.waterfallStart);
-    const endY = yForValue(item.waterfallEnd);
-    const group = createSvgElement("g");
-    const title = createSvgElement("title");
+  svg.appendChild(createSvgElement("text", {
+    x: padding.left - 8,
+    y: padding.top + 11,
+    "text-anchor": "end"
+  }, `+${formatWeight(maxDeviation)} kg`));
+  svg.appendChild(createSvgElement("text", {
+    x: padding.left - 8,
+    y: zeroY + 3,
+    "text-anchor": "end"
+  }, "MA28"));
+  svg.appendChild(createSvgElement("text", {
+    x: padding.left - 8,
+    y: padding.top + plotHeight - 5,
+    "text-anchor": "end"
+  }, `-${formatWeight(maxDeviation)} kg`));
 
-    title.textContent = `${item.fullLabel} : ${formatSignedWeight(item.change)} kg`;
-    group.appendChild(title);
-    group.appendChild(createSvgElement("rect", {
-      x: (centerX - barWidth / 2).toFixed(1),
-      y: Math.min(startY, endY).toFixed(1),
-      width: barWidth.toFixed(1),
-      height: Math.max(2, Math.abs(endY - startY)).toFixed(1),
-      rx: "3",
-      fill: item.change <= 0 ? COLORS.loss : COLORS.ma28,
-      stroke: item.isTotal ? COLORS.text : "none",
-      "stroke-width": item.isTotal ? "1" : "0"
-    }));
-    group.appendChild(createSvgElement("text", {
-      x: centerX.toFixed(1),
+  const defs = createSvgElement("defs");
+  const positiveClip = createSvgElement("clipPath", { id: "ma28-positive-clip" });
+  const negativeClip = createSvgElement("clipPath", { id: "ma28-negative-clip" });
+
+  positiveClip.appendChild(createSvgElement("rect", {
+    x: padding.left,
+    y: padding.top,
+    width: plotWidth,
+    height: zeroY - padding.top
+  }));
+  negativeClip.appendChild(createSvgElement("rect", {
+    x: padding.left,
+    y: zeroY,
+    width: plotWidth,
+    height: padding.top + plotHeight - zeroY
+  }));
+  defs.append(positiveClip, negativeClip);
+  svg.appendChild(defs);
+
+  const curveCommands = points.map((point, index) => {
+    const command = index === 0 ? "M" : "L";
+    return `${command}${xForIndex(point.index).toFixed(1)} ${yForDeviation(point.deviation).toFixed(1)}`;
+  }).join(" ");
+  const firstX = xForIndex(points[0].index);
+  const lastX = xForIndex(points[points.length - 1].index);
+  const areaPath = `M${firstX.toFixed(1)} ${zeroY.toFixed(1)} ${curveCommands.replace(/^M/, "L")} L${lastX.toFixed(1)} ${zeroY.toFixed(1)} Z`;
+
+  svg.appendChild(createSvgElement("path", {
+    d: areaPath,
+    fill: COLORS.ma28,
+    opacity: "0.88",
+    "clip-path": "url(#ma28-positive-clip)"
+  }));
+  svg.appendChild(createSvgElement("path", {
+    d: areaPath,
+    fill: COLORS.loss,
+    opacity: "0.88",
+    "clip-path": "url(#ma28-negative-clip)"
+  }));
+  svg.appendChild(createSvgElement("path", {
+    d: curveCommands,
+    fill: "none",
+    stroke: COLORS.text,
+    opacity: "0.35",
+    "stroke-width": "1.2",
+    "stroke-linecap": "round",
+    "stroke-linejoin": "round"
+  }));
+
+  const tickIndexes = Array.from({ length: 6 }, (_, index) => Math.round((series.length - 1) * index / 5));
+
+  tickIndexes.forEach((seriesIndex) => {
+    const entry = series[seriesIndex];
+    const x = xForIndex(seriesIndex);
+
+    svg.appendChild(createSvgElement("text", {
+      x: x.toFixed(1),
       y: (padding.top + plotHeight + 17).toFixed(1),
       "text-anchor": "middle"
-    }, item.label));
-    svg.appendChild(group);
+    }, formatShortDate(entry.date)));
   });
 }
 

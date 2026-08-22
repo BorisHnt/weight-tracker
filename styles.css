@@ -737,6 +737,14 @@ canvas {
   background: var(--ma28);
 }
 
+.deviation-dot-below {
+  background: var(--good);
+}
+
+.deviation-dot-above {
+  background: var(--ma28);
+}
+
 .tooltip {
   position: fixed;
   z-index: 10;
