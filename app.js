@@ -16,6 +16,18 @@ const COLORS = {
   grid: "rgba(232, 209, 197, 0.62)"
 };
 
+const HEATMAP_COLORS = [
+  "#B8E36F",
+  "#CBE571",
+  "#DDE774",
+  "#EEE879",
+  "#FFEA80",
+  "#FFDA83",
+  "#FFCB89",
+  "#FFBE91",
+  "#FFB399"
+];
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const CHART_RANGES = {
   "7d": 7,
@@ -473,10 +485,16 @@ function renderHeatmap(series) {
     yAxis.appendChild(item);
   });
 
-  const maxDiff = series.reduce((accumulator, entry) => {
-    const value = Math.abs(entry.diff ?? 0);
-    return value > accumulator ? value : accumulator;
-  }, 0);
+  const maxLoss = series.reduce((maximum, entry) => (
+    Number.isFinite(entry.diff) && entry.diff < 0
+      ? Math.max(maximum, Math.abs(entry.diff))
+      : maximum
+  ), 0);
+  const maxGain = series.reduce((maximum, entry) => (
+    Number.isFinite(entry.diff) && entry.diff > 0
+      ? Math.max(maximum, entry.diff)
+      : maximum
+  ), 0);
 
   const entryMap = new Map(series.map((entry) => [entry.isoDate, entry]));
   const gridStart = startOfISOWeek(firstEntry.date);
@@ -526,10 +544,9 @@ function renderHeatmap(series) {
       cell.classList.add("is-gain");
     }
 
-    const opacity = maxDiff > 0 && Number.isFinite(entry.diff)
-      ? Math.min(0.92, Math.max(0.16, Math.abs(entry.diff) / maxDiff))
-      : 0.18;
-    cell.style.setProperty("--cell-opacity", opacity.toFixed(2));
+    if (Number.isFinite(entry.weight)) {
+      fill.style.backgroundColor = HEATMAP_COLORS[getHeatmapColorIndex(entry.diff, maxLoss, maxGain)];
+    }
     cell.dataset.tooltip = buildHeatmapTooltip(entry);
     cell.setAttribute("aria-label", cell.dataset.tooltip.replace(/\n/g, ", "));
     cell.appendChild(fill);
@@ -575,11 +592,11 @@ function renderHeatmapLegend(container) {
   lossLabel.textContent = "Perte";
   container.appendChild(lossLabel);
 
-  [0.2, 0.45, 0.75].forEach((opacity) => {
+  HEATMAP_COLORS.forEach((color) => {
     const swatch = document.createElement("span");
     const fill = document.createElement("span");
     swatch.className = "heatmap-legend-swatch";
-    fill.style.opacity = opacity.toFixed(2);
+    fill.style.backgroundColor = color;
     swatch.appendChild(fill);
     container.appendChild(swatch);
   });
@@ -587,15 +604,20 @@ function renderHeatmapLegend(container) {
   const gainLabel = document.createElement("span");
   gainLabel.textContent = "Prise";
   container.appendChild(gainLabel);
+}
 
-  [0.2, 0.45, 0.75].forEach((opacity) => {
-    const swatch = document.createElement("span");
-    const fill = document.createElement("span");
-    swatch.className = "heatmap-legend-swatch is-gain";
-    fill.style.opacity = opacity.toFixed(2);
-    swatch.appendChild(fill);
-    container.appendChild(swatch);
-  });
+function getHeatmapColorIndex(diff, maxLoss, maxGain) {
+  if (!Number.isFinite(diff) || diff === 0) {
+    return 4;
+  }
+
+  if (diff < 0) {
+    const intensity = maxLoss > 0 ? Math.min(1, Math.abs(diff) / maxLoss) : 0;
+    return 4 - Math.max(1, Math.ceil(intensity * 4));
+  }
+
+  const intensity = maxGain > 0 ? Math.min(1, diff / maxGain) : 0;
+  return 4 + Math.max(1, Math.ceil(intensity * 4));
 }
 
 function renderPrimaryChart(series) {
@@ -672,6 +694,9 @@ function setupBarsChartControls(series) {
   const displaySelect = document.getElementById("barsDisplaySelect");
   const rangeSelect = document.getElementById("barsRangeSelect");
 
+  displaySelect.value = "market";
+  rangeSelect.value = "all";
+
   const update = () => {
     renderBarsChart(series, rangeSelect.value, displaySelect.value);
   };
@@ -681,7 +706,7 @@ function setupBarsChartControls(series) {
   update();
 }
 
-function renderBarsChart(series, rangeKey = "7d", displayKey = "market") {
+function renderBarsChart(series, rangeKey = "all", displayKey = "market") {
   const canvas = document.getElementById("barsChart");
   const hint = document.getElementById("barsChartHint");
   const latestEntry = getLatestValueEntry(series);

@@ -524,21 +524,8 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
-  opacity: var(--cell-opacity, 0);
   border-radius: 1px;
-  background: var(--good);
-}
-
-.heatmap-cell.is-gain .heatmap-fill {
-  background: var(--bad);
-}
-
-.heatmap-cell.is-loss .heatmap-fill {
-  background: var(--good);
-}
-
-.heatmap-cell.is-flat .heatmap-fill {
-  background: var(--neutral);
+  background: var(--accent-ui);
 }
 
 .heatmap-cell.is-missing .heatmap-fill {
@@ -567,16 +554,6 @@ canvas {
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--good);
-}
-
-.heatmap-legend-swatch.is-gain span {
-  background: var(--bad);
-}
-
-.heatmap-legend-swatch.is-missing span {
-  background: var(--neutral);
-  opacity: 0.16;
 }
 
 .tooltip {
