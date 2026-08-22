@@ -9,7 +9,7 @@ const COLORS = {
   raw: "#66A3BF",
   ma7: "#9AB17A",
   ma28: "#C7A957",
-  gain: "#FF9A86",
+  gain: "#FFD400",
   loss: "#9AB17A",
   neutral: "#B9A36B",
   axis: "rgba(87, 89, 91, 0.22)",
