@@ -6,11 +6,11 @@ const COLORS = {
   text: "#57595B",
   muted: "rgba(87, 89, 91, 0.72)",
   border: "#E8D1C5",
-  raw: "#E6B94F",
-  ma7: "#91AA72",
+  raw: "#FFE66D",
+  ma7: "#B8E36F",
   ma28: "#FFB399",
-  gain: "#E6B94F",
-  loss: "#91AA72",
+  gain: "#FFE66D",
+  loss: "#B8E36F",
   neutral: "#B9A36B",
   axis: "rgba(87, 89, 91, 0.22)",
   grid: "rgba(232, 209, 197, 0.62)"
@@ -1152,7 +1152,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
           ? yForValue(0)
           : padding.top + plotHeight;
         context.save();
-        context.fillStyle = dataset.fillColor || "rgba(230, 185, 79, 0.1)";
+        context.fillStyle = dataset.fillColor || "rgba(255, 230, 109, 0.1)";
         context.beginPath();
         context.moveTo(segment[0].x, baseY);
         context.lineTo(segment[0].x, segment[0].y);

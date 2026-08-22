@@ -6,13 +6,13 @@
   --title: #000000;
   --muted: rgba(87, 89, 91, 0.72);
   --border: #e8d1c5;
-  --accent-ui: #e6b94f;
+  --accent-ui: #ffe66d;
   --accent-ui-soft: #fff0be;
-  --raw: #e6b94f;
-  --ma7: #91aa72;
+  --raw: #ffe66d;
+  --ma7: #b8e36f;
   --ma28: #ffb399;
-  --good: #91aa72;
-  --bad: #e6b94f;
+  --good: #b8e36f;
+  --bad: #ffe66d;
   --neutral: #b9a36b;
   --radius: 6px;
   --gap: 10px;
@@ -313,7 +313,7 @@ canvas {
   color: var(--title);
   font-size: 0.8rem;
   font-weight: 600;
-  background: rgba(145, 170, 114, 0.22);
+  background: rgba(184, 227, 111, 0.24);
   border: 1px solid var(--good);
   border-radius: 999px;
 }
