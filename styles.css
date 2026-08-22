@@ -217,6 +217,162 @@ canvas {
   font-size: 0.86rem;
 }
 
+.insights-grid {
+  display: grid;
+  gap: var(--gap);
+}
+
+.visual-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 180px;
+  padding: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.visual-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.visual-card h3 {
+  margin: 0;
+  color: var(--title);
+  font-size: 1rem;
+  letter-spacing: -0.01em;
+}
+
+.visual-value {
+  color: var(--title);
+  font-size: 1.15rem;
+  white-space: nowrap;
+}
+
+.visual-value.month-name {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.visual-detail {
+  min-height: 1.3em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+}
+
+.progress-track,
+.context-track {
+  position: relative;
+  height: 12px;
+  margin-top: auto;
+  background: var(--accent-ui-soft);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+}
+
+.progress-track {
+  overflow: hidden;
+}
+
+.progress-fill {
+  display: block;
+  width: var(--progress, 0%);
+  height: 100%;
+  background: var(--good);
+  border-radius: inherit;
+  transition: width 300ms ease;
+}
+
+.track-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.milestones-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  min-height: 30px;
+}
+
+.milestone-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 4px 9px;
+  color: var(--title);
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(145, 170, 114, 0.22);
+  border: 1px solid var(--good);
+  border-radius: 999px;
+}
+
+.milestone-chip.is-next {
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+  border-color: var(--border);
+}
+
+.monthly-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.monthly-grid div {
+  display: grid;
+  gap: 3px;
+  padding: 9px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.monthly-grid dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.monthly-grid dd {
+  margin: 0;
+  color: var(--title);
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.context-track {
+  margin-right: 7px;
+  margin-left: 7px;
+  background: linear-gradient(90deg, var(--good), var(--accent-ui-soft), var(--ma28));
+}
+
+.context-marker {
+  position: absolute;
+  top: 50%;
+  left: var(--position, 50%);
+  width: 16px;
+  height: 16px;
+  background: var(--title);
+  border: 3px solid var(--panel);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px var(--border);
+  transform: translate(-50%, -50%);
+  transition: left 300ms ease;
+}
+
 .canvas-wrap {
   position: relative;
   min-height: 220px;
@@ -442,6 +598,10 @@ canvas {
 
   .stats-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .insights-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .chart-controls {

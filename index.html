@@ -46,6 +46,67 @@
       </div>
     </section>
 
+    <section class="container section" aria-labelledby="overview-title">
+      <div class="section-head">
+        <div>
+          <h2 id="overview-title">Repères</h2>
+        </div>
+      </div>
+      <div class="insights-grid">
+        <article class="visual-card">
+          <div class="visual-card-head">
+            <h3>Progression vers l'objectif</h3>
+            <strong class="visual-value" id="goalProgressValue">--</strong>
+          </div>
+          <p class="visual-detail" id="goalProgressDetail">En attente des donnees.</p>
+          <div class="progress-track" id="goalProgressTrack" role="progressbar" aria-label="Progression vers l'objectif" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+            <span class="progress-fill" id="goalProgressFill"></span>
+          </div>
+          <div class="track-scale">
+            <span id="goalStartLabel">Depart : --</span>
+            <span id="goalTargetLabel">Objectif : --</span>
+          </div>
+        </article>
+
+        <article class="visual-card">
+          <div class="visual-card-head">
+            <h3>Jalons franchis</h3>
+            <strong class="visual-value" id="milestonesCount">--</strong>
+          </div>
+          <div class="milestones-list" id="milestonesList" aria-live="polite"></div>
+          <p class="visual-detail" id="milestonesDetail">En attente des donnees.</p>
+        </article>
+
+        <article class="visual-card">
+          <div class="visual-card-head">
+            <h3>Résumé mensuel</h3>
+            <strong class="visual-value month-name" id="monthlyLabel">--</strong>
+          </div>
+          <dl class="monthly-grid">
+            <div><dt>Variation</dt><dd id="monthlyChange">--</dd></div>
+            <div><dt>Départ</dt><dd id="monthlyStart">--</dd></div>
+            <div><dt>Minimum</dt><dd id="monthlyMin">--</dd></div>
+            <div><dt>Mesures</dt><dd id="monthlyCount">--</dd></div>
+          </dl>
+        </article>
+
+        <article class="visual-card">
+          <div class="visual-card-head">
+            <h3>Aujourd'hui en contexte</h3>
+            <strong class="visual-value" id="contextCurrentValue">--</strong>
+          </div>
+          <p class="visual-detail" id="contextDetail">En attente des donnees.</p>
+          <div class="context-track" id="contextTrack" role="img" aria-label="Position du poids actuel entre le minimum et le maximum historiques">
+            <span class="context-marker" id="contextMarker"></span>
+          </div>
+          <div class="track-scale">
+            <span id="contextMinLabel">Minimum : --</span>
+            <span id="contextMaxLabel">Maximum : --</span>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section class="container section" aria-labelledby="line-title">
       <div class="section-head">
         <div>

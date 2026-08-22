@@ -87,6 +87,7 @@ async function init() {
       goalEstimate: defaultProjection.goalEstimate
     });
 
+    renderOverviewVisuals(enrichedSeries, firstEntry, latestEntry);
     renderPrimaryChart(enrichedSeries);
     setupBarsChartControls(enrichedSeries, weeklyLoss, rolling28);
     setupProjectionControls(enrichedSeries);
@@ -363,6 +364,155 @@ function updateGoalStat(goalEstimate) {
     goalValue.textContent = "--";
     goalMeta.textContent = "Donnees insuffisantes";
   }
+}
+
+function renderOverviewVisuals(series, firstEntry, latestEntry) {
+  renderGoalProgress(firstEntry, latestEntry);
+  renderMilestones(series, firstEntry, latestEntry);
+  renderMonthlySummary(series, latestEntry);
+  renderCurrentContext(series, latestEntry);
+}
+
+function renderGoalProgress(firstEntry, latestEntry) {
+  const value = document.getElementById("goalProgressValue");
+  const detail = document.getElementById("goalProgressDetail");
+  const track = document.getElementById("goalProgressTrack");
+  const fill = document.getElementById("goalProgressFill");
+  const startLabel = document.getElementById("goalStartLabel");
+  const targetLabel = document.getElementById("goalTargetLabel");
+
+  startLabel.textContent = firstEntry ? `Depart : ${formatWeight(firstEntry.weight)} kg` : "Depart : --";
+  targetLabel.textContent = `Objectif : ${formatWeight(POIDS_OBJECTIF)} kg`;
+
+  if (!firstEntry || !latestEntry || firstEntry.weight === POIDS_OBJECTIF) {
+    value.textContent = "--";
+    detail.textContent = "Donnees insuffisantes.";
+    fill.style.setProperty("--progress", "0%");
+    track.setAttribute("aria-valuenow", "0");
+    return;
+  }
+
+  const requiredChange = firstEntry.weight - POIDS_OBJECTIF;
+  const achievedChange = firstEntry.weight - latestEntry.weight;
+  const progress = Math.min(100, Math.max(0, (achievedChange / requiredChange) * 100));
+  const changeLabel = achievedChange >= 0 ? "perdus" : "repris";
+
+  value.textContent = `${Math.round(progress)} %`;
+  detail.textContent = `${formatWeight(Math.abs(achievedChange))} kg ${changeLabel} sur ${formatWeight(Math.abs(requiredChange))} kg.`;
+  fill.style.setProperty("--progress", `${progress}%`);
+  track.setAttribute("aria-valuenow", progress.toFixed(1));
+}
+
+function renderMilestones(series, firstEntry, latestEntry) {
+  const list = document.getElementById("milestonesList");
+  const count = document.getElementById("milestonesCount");
+  const detail = document.getElementById("milestonesDetail");
+  const measuredWeights = series.map((entry) => entry.weight).filter(Number.isFinite);
+
+  list.replaceChildren();
+
+  if (!firstEntry || !latestEntry || !measuredWeights.length) {
+    count.textContent = "--";
+    detail.textContent = "Donnees insuffisantes.";
+    return;
+  }
+
+  const historicalMin = Math.min(...measuredWeights);
+  const greatestLoss = Math.max(0, firstEntry.weight - historicalMin);
+  const achievedCount = Math.floor((greatestLoss + 0.0001) / 5);
+
+  for (let index = 1; index <= achievedCount; index += 1) {
+    const chip = document.createElement("span");
+    chip.className = "milestone-chip";
+    chip.textContent = `-${index * 5} kg`;
+    list.appendChild(chip);
+  }
+
+  const nextMilestone = (achievedCount + 1) * 5;
+  const nextChip = document.createElement("span");
+  nextChip.className = "milestone-chip is-next";
+  nextChip.textContent = `Prochain : -${nextMilestone} kg`;
+  list.appendChild(nextChip);
+
+  const nextWeight = firstEntry.weight - nextMilestone;
+  const remaining = Math.max(0, latestEntry.weight - nextWeight);
+  count.textContent = `${achievedCount}`;
+  detail.textContent = achievedCount
+    ? `Meilleur niveau : -${formatWeight(greatestLoss)} kg. Prochain jalon dans ${formatWeight(remaining)} kg.`
+    : `Premier jalon dans ${formatWeight(remaining)} kg.`;
+}
+
+function renderMonthlySummary(series, latestEntry) {
+  const label = document.getElementById("monthlyLabel");
+  const change = document.getElementById("monthlyChange");
+  const start = document.getElementById("monthlyStart");
+  const minimum = document.getElementById("monthlyMin");
+  const count = document.getElementById("monthlyCount");
+
+  if (!latestEntry) {
+    label.textContent = "--";
+    return;
+  }
+
+  const year = latestEntry.date.getUTCFullYear();
+  const month = latestEntry.date.getUTCMonth();
+  const monthEntries = series.filter((entry) => (
+    Number.isFinite(entry.weight)
+    && entry.date.getUTCFullYear() === year
+    && entry.date.getUTCMonth() === month
+  ));
+
+  label.textContent = new Intl.DateTimeFormat("fr-FR", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC"
+  }).format(latestEntry.date);
+
+  if (!monthEntries.length) {
+    return;
+  }
+
+  const first = monthEntries[0];
+  const last = monthEntries[monthEntries.length - 1];
+  const minWeight = Math.min(...monthEntries.map((entry) => entry.weight));
+
+  change.textContent = `${formatSignedWeight(last.weight - first.weight)} kg`;
+  start.textContent = `${formatWeight(first.weight)} kg`;
+  minimum.textContent = `${formatWeight(minWeight)} kg`;
+  count.textContent = `${monthEntries.length}`;
+}
+
+function renderCurrentContext(series, latestEntry) {
+  const currentValue = document.getElementById("contextCurrentValue");
+  const detail = document.getElementById("contextDetail");
+  const track = document.getElementById("contextTrack");
+  const marker = document.getElementById("contextMarker");
+  const minLabel = document.getElementById("contextMinLabel");
+  const maxLabel = document.getElementById("contextMaxLabel");
+  const measuredWeights = series.map((entry) => entry.weight).filter(Number.isFinite);
+
+  if (!latestEntry || !measuredWeights.length) {
+    return;
+  }
+
+  const minWeight = Math.min(...measuredWeights);
+  const maxWeight = Math.max(...measuredWeights);
+  const position = minWeight === maxWeight
+    ? 50
+    : ((latestEntry.weight - minWeight) / (maxWeight - minWeight)) * 100;
+  const aboveMinimum = latestEntry.weight - minWeight;
+
+  currentValue.textContent = `${formatWeight(latestEntry.weight)} kg`;
+  detail.textContent = aboveMinimum === 0
+    ? "Le poids actuel est le minimum historique."
+    : `${formatWeight(aboveMinimum)} kg au-dessus du minimum historique.`;
+  minLabel.textContent = `Minimum : ${formatWeight(minWeight)} kg`;
+  maxLabel.textContent = `Maximum : ${formatWeight(maxWeight)} kg`;
+  marker.style.setProperty("--position", `${Math.min(100, Math.max(0, position))}%`);
+  track.setAttribute(
+    "aria-label",
+    `Poids actuel ${formatWeight(latestEntry.weight)} kg, entre ${formatWeight(minWeight)} et ${formatWeight(maxWeight)} kg`
+  );
 }
 
 function drawLineChart(canvas, datasets, options = {}) {
