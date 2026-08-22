@@ -529,11 +529,10 @@ canvas {
   border-radius: 2px;
   overflow: hidden;
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition: border-color 160ms ease;
 }
 
 .heatmap-cell:hover {
-  transform: translateY(-2px);
   border-color: var(--accent-ui);
 }
 
@@ -615,13 +614,12 @@ canvas {
   border: 1px solid var(--border);
   border-radius: 3px;
   cursor: pointer;
-  transition: transform 160ms ease, border-color 160ms ease;
+  transition: border-color 160ms ease;
 }
 
 .aggregate-heatmap-cell:hover {
   z-index: 1;
   border-color: var(--title);
-  transform: translateY(-2px);
 }
 
 .aggregate-heatmap-cell:focus-visible {
