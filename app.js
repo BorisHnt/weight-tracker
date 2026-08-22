@@ -7,10 +7,10 @@ const COLORS = {
   muted: "rgba(87, 89, 91, 0.72)",
   border: "#E8D1C5",
   raw: "#66A3BF",
-  ma7: "#9AB17A",
+  ma7: "#A0C878",
   ma28: "#C7A957",
   gain: "#FFD400",
-  loss: "#9AB17A",
+  loss: "#A0C878",
   neutral: "#B9A36B",
   axis: "rgba(87, 89, 91, 0.22)",
   grid: "rgba(232, 209, 197, 0.62)"
