@@ -18,13 +18,13 @@ const COLORS = {
 
 const HEATMAP_COLORS = [
   "#B8E36F",
-  "#CBE571",
-  "#DDE774",
-  "#EEE879",
-  "#FFEA80",
-  "#FFDA83",
-  "#FFCB89",
-  "#FFBE91",
+  "#D0E580",
+  "#E4E893",
+  "#F3EBA8",
+  "#FFF0BE",
+  "#FFE1B0",
+  "#FFD2A5",
+  "#FFC39D",
   "#FFB399"
 ];
 
