@@ -3,17 +3,17 @@ const POIDS_OBJECTIF = 70;
 const NB_DECIMALES = 1;
 
 const COLORS = {
-  text: "#ECEFF3",
-  muted: "rgba(220, 226, 234, 0.62)",
-  border: "rgba(199, 209, 220, 0.14)",
-  raw: "#8FB7D7",
-  ma7: "#9BC4A2",
-  ma28: "#B6A7D8",
-  gain: "#D98F92",
-  loss: "#9BC4A2",
-  neutral: "#7D8793",
-  axis: "rgba(220, 226, 234, 0.13)",
-  grid: "rgba(220, 226, 234, 0.08)"
+  text: "#57595B",
+  muted: "rgba(87, 89, 91, 0.72)",
+  border: "#E8D1C5",
+  raw: "#66A3BF",
+  ma7: "#9AB17A",
+  ma28: "#C7A957",
+  gain: "#FF9A86",
+  loss: "#9AB17A",
+  neutral: "#B9A36B",
+  axis: "rgba(87, 89, 91, 0.22)",
+  grid: "rgba(232, 209, 197, 0.62)"
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -697,7 +697,7 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
         isMissing,
         marketClose,
         color: isMissing
-          ? "rgba(125, 135, 147, 0.18)"
+          ? "rgba(232, 209, 197, 0.5)"
           : value > 0
             ? COLORS.gain
             : value < 0
@@ -1002,7 +1002,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
           ? yForValue(0)
           : padding.top + plotHeight;
         context.save();
-        context.fillStyle = dataset.fillColor || "rgba(255, 255, 255, 0.08)";
+        context.fillStyle = dataset.fillColor || "rgba(102, 163, 191, 0.1)";
         context.beginPath();
         context.moveTo(segment[0].x, baseY);
         context.lineTo(segment[0].x, segment[0].y);

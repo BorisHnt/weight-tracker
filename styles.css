@@ -1,18 +1,19 @@
 :root {
-  --bg: #171a1f;
-  --panel: #20242b;
-  --surface: #262b33;
-  --text: #eceff3;
-  --muted: rgba(220, 226, 234, 0.68);
-  --border: rgba(199, 209, 220, 0.14);
-  --accent-ui: #9bb9cc;
-  --accent-ui-soft: rgba(155, 185, 204, 0.18);
-  --raw: #8fb7d7;
-  --ma7: #9bc4a2;
-  --ma28: #b6a7d8;
-  --good: #9bc4a2;
-  --bad: #d98f92;
-  --neutral: #7d8793;
+  --bg: #fff8f0;
+  --panel: #fffdf9;
+  --surface: #fff9f2;
+  --text: #57595b;
+  --title: #000000;
+  --muted: rgba(87, 89, 91, 0.72);
+  --border: #e8d1c5;
+  --accent-ui: #66a3bf;
+  --accent-ui-soft: #fff0be;
+  --raw: #66a3bf;
+  --ma7: #9ab17a;
+  --ma28: #c7a957;
+  --good: #9ab17a;
+  --bad: #ff9a86;
+  --neutral: #b9a36b;
   --radius: 6px;
   --gap: 10px;
   --pad: 12px;
@@ -23,7 +24,12 @@
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
+}
+
+::selection {
+  background: var(--accent-ui-soft);
+  color: var(--title);
 }
 
 body {
@@ -72,13 +78,13 @@ canvas {
 .hero-copy {
   margin: 0;
   color: var(--muted);
-  opacity: 0.7;
 }
 
 .hero h1,
 .section h2,
 .subpanel h3 {
   margin: 0;
+  color: var(--title);
   font-weight: 700;
   letter-spacing: -0.02em;
 }
@@ -328,7 +334,7 @@ canvas {
   width: var(--heat-cell);
   height: var(--heat-cell);
   padding: 0;
-  background: rgba(236, 239, 243, 0.035);
+  background: rgba(232, 209, 197, 0.22);
   border: 1px solid var(--border);
   border-radius: 2px;
   overflow: hidden;
@@ -385,7 +391,7 @@ canvas {
   height: var(--heat-cell);
   border-radius: 2px;
   border: 1px solid var(--border);
-  background: rgba(236, 239, 243, 0.035);
+  background: rgba(232, 209, 197, 0.22);
   overflow: hidden;
 }
 
@@ -412,7 +418,7 @@ canvas {
   padding: 8px 10px;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: #1b1e24;
+  background: var(--panel);
   color: var(--text);
   font-size: 0.78rem;
   line-height: 1.45;
