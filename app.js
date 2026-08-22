@@ -36,7 +36,7 @@ const PROJECTION_MODES = {
     color: COLORS.ma28
   },
   all: {
-    label: "Depuis le debut",
+    label: "Depuis le début",
     sourceKey: "weight",
     color: COLORS.raw
   }
@@ -57,7 +57,7 @@ async function init() {
     const records = parseCSV(csvText);
 
     if (!records.length) {
-      throw new Error("Aucune donnee exploitable.");
+      throw new Error("Aucune donnée exploitable.");
     }
 
     const series = buildContinuousSeries(records);
@@ -70,8 +70,6 @@ async function init() {
       diff: computeDailyDiff(series, index)
     }));
 
-    const weeklyLoss = computeWeeklyLoss(enrichedSeries);
-    const rolling28 = compute28DayLoss(enrichedSeries);
     const defaultProjection = getProjectionModel(enrichedSeries, "ma7");
 
     const latestEntry = getLatestValueEntry(enrichedSeries);
@@ -89,11 +87,11 @@ async function init() {
 
     renderOverviewVisuals(enrichedSeries, firstEntry, latestEntry);
     renderPrimaryChart(enrichedSeries);
-    setupBarsChartControls(enrichedSeries, weeklyLoss, rolling28);
+    setupBarsChartControls(enrichedSeries);
     setupProjectionControls(enrichedSeries);
     renderHeatmap(enrichedSeries);
 
-    statusText.textContent = `${records.length} mesures chargees du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
+    statusText.textContent = `${records.length} mesures chargées du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
   } catch (error) {
     setError(error.message || "Impossible de charger le CSV.");
   }
@@ -167,82 +165,6 @@ function computeMovingAverage(series, windowSize) {
 
     return count ? sum / count : null;
   });
-}
-
-function computeWeeklyLoss(series) {
-  const buckets = new Map();
-
-  series.forEach((entry) => {
-    if (!Number.isFinite(entry.weight)) {
-      return;
-    }
-
-    const key = getISOWeekKey(entry.date);
-    const bucket = buckets.get(key);
-
-    if (!bucket) {
-      buckets.set(key, {
-        label: key,
-        startWeight: entry.weight,
-        endWeight: entry.weight,
-        endDate: entry.date
-      });
-      return;
-    }
-
-    bucket.endWeight = entry.weight;
-    bucket.endDate = entry.date;
-  });
-
-  return Array.from(buckets.values()).map((bucket) => ({
-    label: bucket.label,
-    shortLabel: bucket.label.slice(2),
-    value: sanitizeNumber(bucket.startWeight - bucket.endWeight),
-    date: bucket.endDate,
-    color: bucket.startWeight - bucket.endWeight >= 0 ? COLORS.loss : COLORS.gain
-  }));
-}
-
-function compute28DayLoss(series) {
-  const values = [];
-
-  series.forEach((entry, index) => {
-    if (!Number.isFinite(entry.weight)) {
-      return;
-    }
-
-    let referenceWeight = null;
-    let referenceDate = null;
-    const threshold = addDays(entry.date, -27).getTime();
-
-    for (let cursor = index; cursor >= 0; cursor -= 1) {
-      const candidate = series[cursor];
-
-      if (candidate.date.getTime() < threshold) {
-        break;
-      }
-
-      if (Number.isFinite(candidate.weight)) {
-        referenceWeight = candidate.weight;
-        referenceDate = candidate.date;
-      }
-    }
-
-    if (referenceWeight === null || !referenceDate || differenceInDays(entry.date, referenceDate) < 27) {
-      return;
-    }
-
-    const value = sanitizeNumber(referenceWeight - entry.weight);
-    values.push({
-      label: entry.isoDate,
-      shortLabel: formatShortDate(entry.date),
-      value,
-      date: entry.date,
-      color: value >= 0 ? COLORS.loss : COLORS.gain
-    });
-  });
-
-  return values;
 }
 
 function linearRegression(points) {
@@ -335,10 +257,10 @@ function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate }
   cards[0].querySelector(".stat-meta").textContent = latestEntry ? formatDate(latestEntry.date) : "Aucune mesure";
 
   cards[1].querySelector(".stat-value").textContent = displayedTotalChange === null ? "--" : `${formatSignedWeight(displayedTotalChange)} kg`;
-  cards[1].querySelector(".stat-meta").textContent = totalLoss === null ? "Donnees insuffisantes" : totalLoss >= 0 ? "Perte cumulee" : "Evolution cumulee";
+  cards[1].querySelector(".stat-meta").textContent = totalLoss === null ? "Données insuffisantes" : totalLoss >= 0 ? "Perte cumulée" : "Évolution cumulée";
 
   cards[2].querySelector(".stat-value").textContent = displayedAverageWeeklyRate === null ? "--" : `${formatSignedWeight(displayedAverageWeeklyRate)} kg`;
-  cards[2].querySelector(".stat-meta").textContent = averageWeeklyRate === null ? "Donnees insuffisantes" : "Moyenne sur la periode";
+  cards[2].querySelector(".stat-meta").textContent = averageWeeklyRate === null ? "Données insuffisantes" : "Moyenne sur la période";
 
   updateGoalStat(goalEstimate);
 }
@@ -358,11 +280,11 @@ function updateGoalStat(goalEstimate) {
     goalValue.textContent = formatDate(goalEstimate.estimatedDate);
     goalMeta.textContent = goalEstimate.daysRemaining === 0 ? "Objectif atteint" : `${goalEstimate.daysRemaining} jours restants`;
   } else if (goalEstimate.currentWeight !== null) {
-    goalValue.textContent = "Non estime";
-    goalMeta.textContent = "Tendance insuffisante ou orientee a la hausse";
+    goalValue.textContent = "Non estimé";
+    goalMeta.textContent = "Tendance insuffisante ou orientée à la hausse";
   } else {
     goalValue.textContent = "--";
-    goalMeta.textContent = "Donnees insuffisantes";
+    goalMeta.textContent = "Données insuffisantes";
   }
 }
 
@@ -381,12 +303,12 @@ function renderGoalProgress(firstEntry, latestEntry) {
   const startLabel = document.getElementById("goalStartLabel");
   const targetLabel = document.getElementById("goalTargetLabel");
 
-  startLabel.textContent = firstEntry ? `Depart : ${formatWeight(firstEntry.weight)} kg` : "Depart : --";
+  startLabel.textContent = firstEntry ? `Départ : ${formatWeight(firstEntry.weight)} kg` : "Départ : --";
   targetLabel.textContent = `Objectif : ${formatWeight(POIDS_OBJECTIF)} kg`;
 
   if (!firstEntry || !latestEntry || firstEntry.weight === POIDS_OBJECTIF) {
     value.textContent = "--";
-    detail.textContent = "Donnees insuffisantes.";
+    detail.textContent = "Données insuffisantes.";
     fill.style.setProperty("--progress", "0%");
     track.setAttribute("aria-valuenow", "0");
     return;
@@ -746,35 +668,33 @@ function renderPrimaryChart(series) {
   });
 }
 
-function setupBarsChartControls(series, weeklyLoss, rolling28) {
-  const metricSelect = document.getElementById("barsMetricSelect");
+function setupBarsChartControls(series) {
   const displaySelect = document.getElementById("barsDisplaySelect");
   const rangeSelect = document.getElementById("barsRangeSelect");
 
   const update = () => {
-    renderBarsChart(series, weeklyLoss, rolling28, metricSelect.value, rangeSelect.value, displaySelect.value);
+    renderBarsChart(series, rangeSelect.value, displaySelect.value);
   };
 
-  metricSelect.addEventListener("change", update);
   displaySelect.addEventListener("change", update);
   rangeSelect.addEventListener("change", update);
   update();
 }
 
-function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d", displayKey = "market") {
+function renderBarsChart(series, rangeKey = "7d", displayKey = "market") {
   const canvas = document.getElementById("barsChart");
   const hint = document.getElementById("barsChartHint");
   const latestEntry = getLatestValueEntry(series);
   const windowDays = CHART_RANGES[rangeKey] ?? null;
   const cutoff = latestEntry && windowDays ? addDays(latestEntry.date, -(windowDays - 1)) : null;
-  const metricLabel = getBarsMetricLabel(metricKey);
   const rangeLabel = getBarsRangeLabel(rangeKey);
-  const entries = buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff);
+  const rangePhrase = rangeKey === "all" ? "depuis le début" : `sur ${rangeLabel.toLowerCase()}`;
+  const entries = buildBarsChartEntries(series, cutoff);
 
-  hint.textContent = `${metricLabel} sur ${rangeLabel.toLowerCase()} en mode ${displayKey === "market" ? "cours" : "barres"}.`;
+  hint.textContent = `Variation journalière ${rangePhrase} en mode ${displayKey === "market" ? "cours" : "barres"}.`;
 
   if (displayKey === "market") {
-    renderMarketChart(canvas, entries, metricKey);
+    renderMarketChart(canvas, entries);
     return;
   }
 
@@ -785,39 +705,7 @@ function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", ran
   });
 }
 
-function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff) {
-  if (metricKey === "weekly") {
-    let runningWeight = getFirstValueEntry(series)?.weight ?? 0;
-
-    return weeklyLoss
-      .filter((entry) => !cutoff || entry.date >= cutoff)
-      .map((entry) => ({
-        ...entry,
-        marketClose: runningWeight - entry.value,
-        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }))
-      .map((entry) => {
-        runningWeight = entry.marketClose;
-        return entry;
-      });
-  }
-
-  if (metricKey === "rolling28") {
-    let runningWeight = getFirstValueEntry(series)?.weight ?? 0;
-
-    return rolling28
-      .filter((entry) => !cutoff || entry.date >= cutoff)
-      .map((entry) => ({
-        ...entry,
-        marketClose: runningWeight - entry.value,
-        color: entry.value >= 0 ? COLORS.loss : COLORS.gain
-      }))
-      .map((entry) => {
-        runningWeight = entry.marketClose;
-        return entry;
-      });
-  }
-
+function buildBarsChartEntries(series, cutoff) {
   let previousWeight = null;
 
   return series
@@ -849,7 +737,7 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
     });
 }
 
-function renderMarketChart(canvas, entries, metricKey) {
+function renderMarketChart(canvas, entries) {
   const candles = buildCandlesFromEntries(entries);
 
   drawCandlestickChart(canvas, candles, {
@@ -945,7 +833,7 @@ function renderProjection(series, model) {
 
   if (goalEstimate.estimatedDate) {
     summary.querySelector(".projection-detail").textContent = goalEstimate.daysRemaining === 0
-      ? `Objectif ${formatWeight(POIDS_OBJECTIF)} kg deja atteint.`
+      ? `Objectif ${formatWeight(POIDS_OBJECTIF)} kg déjà atteint.`
       : `Projection au ${formatDate(goalEstimate.estimatedDate)} (${goalEstimate.daysRemaining} jours).`;
   } else {
     summary.querySelector(".projection-detail").textContent = "Projection indisponible avec la tendance actuelle.";
@@ -1051,7 +939,7 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
   const flatValues = datasets.flatMap((dataset) => dataset.values.filter(Number.isFinite));
 
   if (!flatValues.length) {
-    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    drawEmptyState(context, width, height, "Données insuffisantes");
     return;
   }
 
@@ -1212,14 +1100,14 @@ function renderBarChartToCanvas(context, width, height, data, options) {
   const plotHeight = Math.max(10, height - padding.top - padding.bottom);
 
   if (!data.length) {
-    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    drawEmptyState(context, width, height, "Données insuffisantes");
     return;
   }
 
   const values = data.map((item) => item.value).filter(Number.isFinite);
 
   if (!values.length) {
-    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    drawEmptyState(context, width, height, "Données insuffisantes");
     return;
   }
 
@@ -1299,7 +1187,7 @@ function renderCandlestickChartToCanvas(context, width, height, data, options) {
   const plotHeight = Math.max(10, height - padding.top - padding.bottom);
 
   if (!data.length) {
-    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    drawEmptyState(context, width, height, "Données insuffisantes");
     return;
   }
 
@@ -1307,7 +1195,7 @@ function renderCandlestickChartToCanvas(context, width, height, data, options) {
   const volumes = data.map((item) => item.volume).filter(Number.isFinite);
 
   if (!prices.length) {
-    drawEmptyState(context, width, height, "Donnees insuffisantes");
+    drawEmptyState(context, width, height, "Données insuffisantes");
     return;
   }
 
@@ -1461,18 +1349,6 @@ function filterBarAxisLabel(label, index, total) {
   return index % every === 0 || index === total - 1 ? label : "";
 }
 
-function getBarsMetricLabel(metricKey) {
-  if (metricKey === "weekly") {
-    return "Perte hebdomadaire";
-  }
-
-  if (metricKey === "rolling28") {
-    return "Perte glissante 28 jours";
-  }
-
-  return "Variation journaliere";
-}
-
 function getBarsRangeLabel(rangeKey) {
   if (rangeKey === "28d") {
     return "28 jours";
@@ -1487,7 +1363,7 @@ function getBarsRangeLabel(rangeKey) {
   }
 
   if (rangeKey === "all") {
-    return "depuis le debut";
+    return "depuis le début";
   }
 
   return "7 jours";
@@ -1659,13 +1535,4 @@ function endOfISOWeek(date) {
 
 function formatISODate(date) {
   return date.toISOString().slice(0, 10);
-}
-
-function getISOWeekKey(date) {
-  const temp = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
-  const day = temp.getUTCDay() || 7;
-  temp.setUTCDate(temp.getUTCDate() + 4 - day);
-  const yearStart = new Date(Date.UTC(temp.getUTCFullYear(), 0, 1));
-  const weekNo = Math.ceil((((temp - yearStart) / DAY_MS) + 1) / 7);
-  return `${temp.getUTCFullYear()}-W${String(weekNo).padStart(2, "0")}`;
 }

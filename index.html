@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Weight Tracker Dashboard</title>
+  <title>Tableau de bord du suivi de poids</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -13,7 +13,7 @@
         <p class="eyebrow">Suivi de poids</p>
         <h1>Dashboard</h1>
       </div>
-      <p class="hero-copy" id="statusText">Chargement des donnees...</p>
+      <p class="hero-copy" id="statusText">Chargement des données...</p>
     </header>
 
     <section class="container section" aria-labelledby="stats-title">
@@ -26,12 +26,12 @@
         <article class="stat-card">
           <span class="stat-label">Poids actuel</span>
           <strong class="stat-value">--</strong>
-          <span class="stat-meta">Derniere mesure</span>
+          <span class="stat-meta">Dernière mesure</span>
         </article>
         <article class="stat-card">
           <span class="stat-label">Perte totale</span>
           <strong class="stat-value">--</strong>
-          <span class="stat-meta">Depuis le debut</span>
+          <span class="stat-meta">Depuis le début</span>
         </article>
         <article class="stat-card">
           <span class="stat-label">Rythme moyen</span>
@@ -58,12 +58,12 @@
             <h3>Progression vers l'objectif</h3>
             <strong class="visual-value" id="goalProgressValue">--</strong>
           </div>
-          <p class="visual-detail" id="goalProgressDetail">En attente des donnees.</p>
+          <p class="visual-detail" id="goalProgressDetail">En attente des données.</p>
           <div class="progress-track" id="goalProgressTrack" role="progressbar" aria-label="Progression vers l'objectif" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
             <span class="progress-fill" id="goalProgressFill"></span>
           </div>
           <div class="track-scale">
-            <span id="goalStartLabel">Depart : --</span>
+            <span id="goalStartLabel">Départ : --</span>
             <span id="goalTargetLabel">Objectif : --</span>
           </div>
         </article>
@@ -77,7 +77,7 @@
             <div class="regularity-ring" id="regularityRing" role="progressbar" aria-label="Régularité des pesées sur 28 jours" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
               <strong id="regularityPercent">-- %</strong>
             </div>
-            <p class="visual-detail" id="regularityDetail">En attente des donnees.</p>
+            <p class="visual-detail" id="regularityDetail">En attente des données.</p>
           </div>
         </article>
 
@@ -99,7 +99,7 @@
             <h3>Aujourd'hui en contexte</h3>
             <strong class="visual-value" id="contextCurrentValue">--</strong>
           </div>
-          <p class="visual-detail" id="contextDetail">En attente des donnees.</p>
+          <p class="visual-detail" id="contextDetail">En attente des données.</p>
           <div class="context-track" id="contextTrack" role="img" aria-label="Position du poids actuel entre le minimum et le maximum historiques">
             <span class="context-marker" id="contextMarker"></span>
           </div>
@@ -136,33 +136,25 @@
         </div>
         <div class="chart-controls">
           <label class="chart-control">
-            <span class="chart-control-label">Metrique</span>
-            <select id="barsMetricSelect" class="chart-select" aria-label="Metrique du graphique">
-              <option value="daily">Variation journaliere</option>
-              <option value="weekly">Perte hebdomadaire</option>
-              <option value="rolling28">Perte glissante 28 jours</option>
-            </select>
-          </label>
-          <label class="chart-control">
             <span class="chart-control-label">Affichage</span>
-            <select id="barsDisplaySelect" class="chart-select" aria-label="Type d affichage du graphique">
+            <select id="barsDisplaySelect" class="chart-select" aria-label="Type d'affichage du graphique">
               <option value="bars">Barres</option>
               <option value="market" selected>Cours</option>
             </select>
           </label>
           <label class="chart-control">
-            <span class="chart-control-label">Periode</span>
-            <select id="barsRangeSelect" class="chart-select" aria-label="Periode du graphique">
+            <span class="chart-control-label">Période</span>
+            <select id="barsRangeSelect" class="chart-select" aria-label="Période du graphique">
               <option value="7d">7 jours</option>
               <option value="28d">28 jours</option>
               <option value="6m">6 mois</option>
               <option value="1y">1 an</option>
-              <option value="all" selected>Depuis le debut</option>
+              <option value="all" selected>Depuis le début</option>
             </select>
           </label>
         </div>
       </div>
-      <p class="projection-detail" id="barsChartHint">Variation journaliere sur depuis le debut en mode cours.</p>
+      <p class="projection-detail" id="barsChartHint">Variation journalière depuis le début en mode cours.</p>
       <div class="canvas-wrap">
         <canvas id="barsChart" aria-label="Graphique des variations et pertes" role="img"></canvas>
       </div>
@@ -171,25 +163,25 @@
     <section class="container section" aria-labelledby="projection-title">
       <div class="section-head">
         <div>
-          <h2 id="projection-title">Projection objectif</h2>
+          <h2 id="projection-title">Projection de l'objectif</h2>
         </div>
       </div>
       <div class="projection-grid">
         <div class="projection-copy" id="projectionSummary">
           <label class="chart-control">
-            <span class="chart-control-label">Base tendance</span>
+            <span class="chart-control-label">Base de tendance</span>
             <select id="projectionModeSelect" class="chart-select" aria-label="Base de calcul de la projection">
               <option value="ma7" selected>MA7</option>
               <option value="ma28">MA28</option>
-              <option value="all">Depuis le debut</option>
+              <option value="all">Depuis le début</option>
             </select>
           </label>
           <p class="projection-label" id="projectionModeLabel">Tendance MA7</p>
           <strong class="projection-value">--</strong>
-          <p class="projection-detail">En attente des donnees.</p>
+          <p class="projection-detail">En attente des données.</p>
         </div>
         <div class="canvas-wrap short">
-          <canvas id="projectionChart" aria-label="Projection vers l objectif" role="img"></canvas>
+          <canvas id="projectionChart" aria-label="Projection vers l'objectif" role="img"></canvas>
         </div>
       </div>
     </section>

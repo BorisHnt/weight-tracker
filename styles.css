@@ -102,6 +102,7 @@ canvas {
 .section-head,
 .subpanel-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
@@ -114,9 +115,10 @@ canvas {
 }
 
 .chart-controls {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  width: min(100%, 316px);
+  margin-left: auto;
   gap: 8px;
 }
 
@@ -133,7 +135,8 @@ canvas {
 
 .chart-select {
   appearance: none;
-  min-width: 148px;
+  width: 100%;
+  min-width: 0;
   border: 1px solid var(--border);
   background: var(--surface);
   color: var(--text);
@@ -611,10 +614,6 @@ canvas {
 
   .insights-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .chart-controls {
-    max-width: 460px;
   }
 
   .projection-grid {
