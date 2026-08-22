@@ -536,7 +536,38 @@ function renderHeatmapLegend(container) {
 
 function renderPrimaryChart(series) {
   const canvas = document.getElementById("lineChart");
+  const measuredWeights = series
+    .map((entry) => entry.weight)
+    .filter(Number.isFinite);
+  const maxWeight = measuredWeights.length ? Math.max(...measuredWeights) : null;
+  const minWeight = measuredWeights.length ? Math.min(...measuredWeights) : null;
+
+  document.getElementById("maxWeightLegend").textContent = Number.isFinite(maxWeight)
+    ? `Maximum : ${formatWeight(maxWeight)} kg`
+    : "Maximum : --";
+  document.getElementById("minWeightLegend").textContent = Number.isFinite(minWeight)
+    ? `Minimum : ${formatWeight(minWeight)} kg`
+    : "Minimum : --";
+
   const datasets = [
+    {
+      label: "Poids maximum",
+      values: series.map(() => maxWeight),
+      color: COLORS.gain,
+      lineWidth: 1.4,
+      dash: [7, 5],
+      smooth: false,
+      connectGaps: true
+    },
+    {
+      label: "Poids minimum",
+      values: series.map(() => minWeight),
+      color: COLORS.loss,
+      lineWidth: 1.4,
+      dash: [7, 5],
+      smooth: false,
+      connectGaps: true
+    },
     {
       label: "Poids brut",
       values: series.map((entry) => entry.weight),

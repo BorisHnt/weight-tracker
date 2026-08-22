@@ -170,6 +170,14 @@ canvas {
   background: var(--ma28);
 }
 
+.swatch-max {
+  background: var(--bad);
+}
+
+.swatch-min {
+  background: var(--good);
+}
+
 .stats-grid {
   display: grid;
   gap: var(--gap);
