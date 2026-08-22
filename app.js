@@ -3,17 +3,17 @@ const POIDS_OBJECTIF = 70;
 const NB_DECIMALES = 1;
 
 const COLORS = {
-  text: "#FBFBFB",
-  muted: "rgba(251, 251, 251, 0.58)",
-  border: "#333333",
-  raw: "#DD105E",
-  ma7: "#FFD700",
-  ma28: "#0C3C78",
-  gain: "#DD105E",
-  loss: "#FFD700",
-  neutral: "#5A5A5A",
-  axis: "rgba(251, 251, 251, 0.10)",
-  grid: "rgba(251, 251, 251, 0.08)"
+  text: "#ECEFF3",
+  muted: "rgba(220, 226, 234, 0.62)",
+  border: "rgba(199, 209, 220, 0.14)",
+  raw: "#8FB7D7",
+  ma7: "#9BC4A2",
+  ma28: "#B6A7D8",
+  gain: "#D98F92",
+  loss: "#9BC4A2",
+  neutral: "#7D8793",
+  axis: "rgba(220, 226, 234, 0.13)",
+  grid: "rgba(220, 226, 234, 0.08)"
 };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -28,17 +28,17 @@ const PROJECTION_MODES = {
   ma7: {
     label: "MA7",
     sourceKey: "ma7",
-    color: "#FFD700"
+    color: COLORS.ma7
   },
   ma28: {
     label: "MA28",
     sourceKey: "ma28",
-    color: "#0C3C78"
+    color: COLORS.ma28
   },
   all: {
     label: "Depuis le debut",
     sourceKey: "weight",
-    color: "#DD105E"
+    color: COLORS.raw
   }
 };
 
@@ -588,7 +588,7 @@ function setupBarsChartControls(series, weeklyLoss, rolling28) {
   update();
 }
 
-function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d", displayKey = "bars") {
+function renderBarsChart(series, weeklyLoss, rolling28, metricKey = "daily", rangeKey = "7d", displayKey = "market") {
   const canvas = document.getElementById("barsChart");
   const hint = document.getElementById("barsChartHint");
   const latestEntry = getLatestValueEntry(series);
@@ -666,7 +666,7 @@ function buildBarsChartEntries(series, weeklyLoss, rolling28, metricKey, cutoff)
         isMissing,
         marketClose,
         color: isMissing
-          ? "rgba(12, 60, 120, 0.18)"
+          ? "rgba(125, 135, 147, 0.18)"
           : value > 0
             ? COLORS.gain
             : value < 0
