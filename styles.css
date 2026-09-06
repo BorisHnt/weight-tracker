@@ -379,12 +379,37 @@ canvas {
   background: linear-gradient(90deg, var(--ma28), var(--accent-ui-soft), var(--good));
 }
 
+.monthly-summary-card,
 .bmi-card {
   min-height: 220px;
 }
 
-.bmi-card .visual-detail:last-child {
+.visual-footnote,
+.visual-footnote-row {
+  margin: 0;
+}
+
+.visual-footnote {
+  color: var(--muted);
+  font-size: 0.66rem;
+  line-height: 1.35;
+}
+
+.monthly-summary-card > .visual-footnote,
+.visual-footnote-row {
   margin-top: auto;
+}
+
+.visual-footnote-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.visual-footnote-row .visual-footnote:last-child {
+  flex: 1;
+  text-align: right;
 }
 
 .bmi-grid dd {
