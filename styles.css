@@ -802,8 +802,8 @@ canvas {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-areas:
       "progress regularity"
-      "lower monthly"
-      "context bmi";
+      "lower context"
+      "monthly bmi";
   }
 
   .goal-progress-card { grid-area: progress; }
