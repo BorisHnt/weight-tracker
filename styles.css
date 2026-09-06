@@ -220,6 +220,10 @@ canvas {
   font-size: 0.86rem;
 }
 
+.stat-card.is-achieved .stat-value {
+  font-size: clamp(1.2rem, 3vw, 1.65rem);
+}
+
 .insights-grid {
   display: grid;
   gap: var(--gap);
@@ -369,6 +373,22 @@ canvas {
   margin-right: 7px;
   margin-left: 7px;
   background: linear-gradient(90deg, var(--good), var(--accent-ui-soft), var(--ma28));
+}
+
+.lower-bound-track {
+  background: linear-gradient(90deg, var(--ma28), var(--accent-ui-soft), var(--good));
+}
+
+.bmi-card {
+  min-height: 220px;
+}
+
+.bmi-card .visual-detail:last-child {
+  margin-top: auto;
+}
+
+.bmi-grid dd {
+  font-size: 0.92rem;
 }
 
 .context-marker {
@@ -780,7 +800,18 @@ canvas {
 
   .insights-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-areas:
+      "progress regularity"
+      "lower monthly"
+      "context bmi";
   }
+
+  .goal-progress-card { grid-area: progress; }
+  .lower-bound-card { grid-area: lower; }
+  .regularity-card { grid-area: regularity; }
+  .monthly-summary-card { grid-area: monthly; }
+  .context-card { grid-area: context; }
+  .bmi-card { grid-area: bmi; }
 
   .monthly-sparklines-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));

@@ -1,5 +1,8 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSjT2SSS6qwBRkxbPD73BjDecvjJACuHFoHKrRXssEgOrHmvj5O9b_5NBDYarw3AMKFPKvYYiHfezfH/pub?gid=0&single=true&output=csv";
 const POIDS_OBJECTIF = 70;
+const POIDS_SEUIL_BAS = 60;
+const TAILLE_CM = 178;
+const DATE_NAISSANCE = "1992-02-24";
 const NB_DECIMALES = 1;
 
 const COLORS = {
@@ -88,6 +91,7 @@ async function init() {
 
     const latestEntry = getLatestValueEntry(enrichedSeries);
     const firstEntry = getFirstValueEntry(enrichedSeries);
+    const goalAchievement = getGoalAchievement(enrichedSeries);
     const totalLoss = firstEntry && latestEntry ? firstEntry.weight - latestEntry.weight : null;
     const daysSpan = firstEntry && latestEntry ? Math.max(1, differenceInDays(latestEntry.date, firstEntry.date)) : null;
     const averageWeeklyRate = totalLoss !== null && daysSpan ? (totalLoss / daysSpan) * 7 : null;
@@ -96,13 +100,14 @@ async function init() {
       latestEntry,
       totalLoss,
       averageWeeklyRate,
-      goalEstimate: defaultProjection.goalEstimate
+      goalEstimate: defaultProjection.goalEstimate,
+      goalAchievement
     });
 
-    renderOverviewVisuals(enrichedSeries, firstEntry, latestEntry);
+    renderOverviewVisuals(enrichedSeries, latestEntry);
     renderPrimaryChart(enrichedSeries);
     setupBarsChartControls(enrichedSeries);
-    setupProjectionControls(enrichedSeries);
+    setupProjectionControls(enrichedSeries, goalAchievement);
     renderHeatmap(enrichedSeries);
     renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend");
     renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend");
@@ -260,7 +265,7 @@ function estimateGoalDate(series, regression, targetWeight, sourceKey = "ma7") {
   };
 }
 
-function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate }) {
+function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate, goalAchievement }) {
   const statsGrid = document.getElementById("statsGrid");
   const cards = Array.from(statsGrid.querySelectorAll(".stat-card"));
   const displayedTotalChange = totalLoss === null ? null : -totalLoss;
@@ -279,10 +284,10 @@ function renderStats({ latestEntry, totalLoss, averageWeeklyRate, goalEstimate }
   cards[2].querySelector(".stat-value").textContent = displayedAverageWeeklyRate === null ? "--" : `${formatSignedWeight(displayedAverageWeeklyRate)} kg`;
   cards[2].querySelector(".stat-meta").textContent = averageWeeklyRate === null ? "Données insuffisantes" : "Moyenne sur la période";
 
-  updateGoalStat(goalEstimate);
+  updateGoalStat(goalEstimate, goalAchievement);
 }
 
-function updateGoalStat(goalEstimate) {
+function updateGoalStat(goalEstimate, goalAchievement) {
   const statsGrid = document.getElementById("statsGrid");
   const cards = Array.from(statsGrid.querySelectorAll(".stat-card"));
 
@@ -292,6 +297,21 @@ function updateGoalStat(goalEstimate) {
 
   const goalValue = cards[3].querySelector(".stat-value");
   const goalMeta = cards[3].querySelector(".stat-meta");
+  cards[3].classList.toggle("is-achieved", Boolean(goalAchievement?.achieved));
+
+  if (goalAchievement?.achieved) {
+    const distanceFromGoal = POIDS_OBJECTIF - goalAchievement.currentWeight;
+    goalValue.textContent = `${formatWeight(POIDS_OBJECTIF)} kg atteint`;
+
+    if (distanceFromGoal > 0) {
+      goalMeta.textContent = `${formatWeight(distanceFromGoal)} kg sous l'objectif`;
+    } else if (distanceFromGoal < 0) {
+      goalMeta.textContent = `Déjà franchi · actuel : ${formatWeight(goalAchievement.currentWeight)} kg`;
+    } else {
+      goalMeta.textContent = "Objectif atteint";
+    }
+    return;
+  }
 
   if (goalEstimate.estimatedDate) {
     goalValue.textContent = formatDate(goalEstimate.estimatedDate);
@@ -305,14 +325,16 @@ function updateGoalStat(goalEstimate) {
   }
 }
 
-function renderOverviewVisuals(series, firstEntry, latestEntry) {
-  renderGoalProgress(firstEntry, latestEntry);
+function renderOverviewVisuals(series, latestEntry) {
+  renderGoalProgress(series, latestEntry);
+  renderLowerBound(latestEntry);
   renderRegularity(series, latestEntry);
   renderMonthlySummary(series, latestEntry);
   renderCurrentContext(series, latestEntry);
+  renderBmiCard(series, latestEntry);
 }
 
-function renderGoalProgress(firstEntry, latestEntry) {
+function renderGoalProgress(series, latestEntry) {
   const value = document.getElementById("goalProgressValue");
   const detail = document.getElementById("goalProgressDetail");
   const track = document.getElementById("goalProgressTrack");
@@ -320,10 +342,13 @@ function renderGoalProgress(firstEntry, latestEntry) {
   const startLabel = document.getElementById("goalStartLabel");
   const targetLabel = document.getElementById("goalTargetLabel");
 
-  startLabel.textContent = firstEntry ? `Départ : ${formatWeight(firstEntry.weight)} kg` : "Départ : --";
+  const measuredEntries = series.filter((entry) => Number.isFinite(entry.weight));
+  const maximumWeight = measuredEntries.length ? Math.max(...measuredEntries.map((entry) => entry.weight)) : null;
+
+  startLabel.textContent = maximumWeight !== null ? `Maximum : ${formatWeight(maximumWeight)} kg` : "Maximum : --";
   targetLabel.textContent = `Objectif : ${formatWeight(POIDS_OBJECTIF)} kg`;
 
-  if (!firstEntry || !latestEntry || firstEntry.weight === POIDS_OBJECTIF) {
+  if (maximumWeight === null || !latestEntry || maximumWeight === POIDS_OBJECTIF) {
     value.textContent = "--";
     detail.textContent = "Données insuffisantes.";
     fill.style.setProperty("--progress", "0%");
@@ -331,15 +356,70 @@ function renderGoalProgress(firstEntry, latestEntry) {
     return;
   }
 
-  const requiredChange = firstEntry.weight - POIDS_OBJECTIF;
-  const achievedChange = firstEntry.weight - latestEntry.weight;
-  const progress = Math.min(100, Math.max(0, (achievedChange / requiredChange) * 100));
+  const requiredChange = maximumWeight - POIDS_OBJECTIF;
+  const achievedChange = maximumWeight - latestEntry.weight;
+  const progress = Math.max(0, (achievedChange / requiredChange) * 100);
+  const visualProgress = Math.min(100, progress);
   const changeLabel = achievedChange >= 0 ? "perdus" : "repris";
 
-  value.textContent = `${Math.round(progress)} %`;
-  detail.textContent = `${formatWeight(Math.abs(achievedChange))} kg ${changeLabel} sur ${formatWeight(Math.abs(requiredChange))} kg.`;
-  fill.style.setProperty("--progress", `${progress}%`);
-  track.setAttribute("aria-valuenow", progress.toFixed(1));
+  value.textContent = `${formatPercentage(progress)} %`;
+  detail.textContent = latestEntry.weight < POIDS_OBJECTIF
+    ? `Objectif dépassé de ${formatWeight(POIDS_OBJECTIF - latestEntry.weight)} kg · ${formatWeight(achievedChange)} kg perdus.`
+    : `${formatWeight(Math.abs(achievedChange))} kg ${changeLabel} sur ${formatWeight(Math.abs(requiredChange))} kg.`;
+  fill.style.setProperty("--progress", `${visualProgress}%`);
+  track.setAttribute("aria-valuenow", visualProgress.toFixed(1));
+  track.setAttribute("aria-valuetext", `${formatPercentage(progress)} % de l'objectif`);
+}
+
+function renderLowerBound(latestEntry) {
+  const value = document.getElementById("lowerBoundValue");
+  const detail = document.getElementById("lowerBoundDetail");
+  const track = document.getElementById("lowerBoundTrack");
+  const marker = document.getElementById("lowerBoundMarker");
+
+  document.getElementById("lowerBoundMinLabel").textContent = `Seuil bas : ${formatWeight(POIDS_SEUIL_BAS)} kg`;
+  document.getElementById("lowerBoundMaxLabel").textContent = `Objectif : ${formatWeight(POIDS_OBJECTIF)} kg`;
+
+  if (!latestEntry) {
+    return;
+  }
+
+  const position = Math.min(100, Math.max(0, ((latestEntry.weight - POIDS_SEUIL_BAS) / (POIDS_OBJECTIF - POIDS_SEUIL_BAS)) * 100));
+  value.textContent = `${formatWeight(latestEntry.weight)} kg`;
+  marker.style.setProperty("--position", `${position}%`);
+
+  if (latestEntry.weight <= POIDS_SEUIL_BAS) {
+    detail.textContent = "Seuil bas atteint ou dépassé.";
+  } else if (latestEntry.weight < POIDS_OBJECTIF) {
+    detail.textContent = `${formatWeight(POIDS_OBJECTIF - latestEntry.weight)} kg sous l'objectif · ${formatWeight(latestEntry.weight - POIDS_SEUIL_BAS)} kg au-dessus du seuil bas.`;
+  } else {
+    detail.textContent = "Poids actuel au niveau ou au-dessus de l'objectif.";
+  }
+
+  track.setAttribute("aria-label", `Poids actuel ${formatWeight(latestEntry.weight)} kg, entre ${formatWeight(POIDS_SEUIL_BAS)} et ${formatWeight(POIDS_OBJECTIF)} kg`);
+}
+
+function renderBmiCard(series, latestEntry) {
+  if (!latestEntry) {
+    return;
+  }
+
+  const measuredWeights = series.filter((entry) => Number.isFinite(entry.weight)).map((entry) => entry.weight);
+  const maximumWeight = Math.max(...measuredWeights);
+  const age = calculateAge(DATE_NAISSANCE);
+  const currentBmi = calculateBmi(latestEntry.weight);
+  const goalBmi = calculateBmi(POIDS_OBJECTIF);
+  const maximumBmi = calculateBmi(maximumWeight);
+  const restingEnergy = 10 * latestEntry.weight + 6.25 * TAILLE_CM - 5 * age + 5;
+  const lossPercentage = ((maximumWeight - latestEntry.weight) / maximumWeight) * 100;
+
+  document.getElementById("bmiCurrentValue").textContent = currentBmi.toFixed(1).replace(".", ",");
+  document.getElementById("bmiDetail").textContent = `Homme · ${(TAILLE_CM / 100).toFixed(2).replace(".", ",")} m · ${age} ans`;
+  document.getElementById("bmiGoalValue").textContent = goalBmi.toFixed(1).replace(".", ",");
+  document.getElementById("bmiMaxValue").textContent = maximumBmi.toFixed(1).replace(".", ",");
+  document.getElementById("bmiChangeValue").textContent = formatSignedDecimal(currentBmi - maximumBmi);
+  document.getElementById("restingEnergyValue").textContent = `${Math.round(restingEnergy)} kcal/j`;
+  document.getElementById("weightLossPercentDetail").textContent = `Perte depuis le maximum : ${formatPercentage(lossPercentage)} % · repos estimé avec Mifflin–St Jeor.`;
 }
 
 function renderRegularity(series, latestEntry) {
@@ -1267,13 +1347,13 @@ function buildCandlesFromEntries(entries) {
   });
 }
 
-function setupProjectionControls(series) {
+function setupProjectionControls(series, goalAchievement) {
   const select = document.getElementById("projectionModeSelect");
 
   const update = () => {
     const model = getProjectionModel(series, select.value);
-    renderProjection(series, model);
-    updateGoalStat(model.goalEstimate);
+    renderProjection(series, model, goalAchievement);
+    updateGoalStat(model.goalEstimate, goalAchievement);
   };
 
   select.addEventListener("change", update);
@@ -1296,17 +1376,19 @@ function getProjectionModel(series, modeKey = "ma7") {
   };
 }
 
-function renderProjection(series, model) {
+function renderProjection(series, model, goalAchievement) {
   const summary = document.getElementById("projectionSummary");
   const modeLabel = document.getElementById("projectionModeLabel");
+  const title = document.getElementById("projection-title");
   const latestEntry = getLatestValueEntry(series);
+  const goalIsAchieved = Boolean(goalAchievement?.achieved);
   const { regression, goalEstimate } = model;
   const trendSeries = series.map((entry, index) => (
     Number.isFinite(regression.slope) && Number.isFinite(regression.intercept) && Number.isFinite(entry[model.sourceKey])
       ? regression.intercept + regression.slope * index
       : null
   ));
-  const futureDays = goalEstimate.daysRemaining ? Math.min(goalEstimate.daysRemaining, 365) : 0;
+  const futureDays = !goalIsAchieved && goalEstimate.daysRemaining ? Math.min(goalEstimate.daysRemaining, 365) : 0;
   const futureProjection = [];
 
   if (latestEntry && Number.isFinite(regression.slope) && Number.isFinite(regression.intercept)) {
@@ -1321,11 +1403,14 @@ function renderProjection(series, model) {
   }
 
   modeLabel.textContent = `Tendance ${model.label}`;
+  title.textContent = goalIsAchieved ? "Tendance après l'objectif" : "Projection de l'objectif";
   summary.querySelector(".projection-value").textContent = Number.isFinite(regression.slope)
     ? `${formatSignedWeight(regression.slope * 7)} kg / semaine`
     : "--";
 
-  if (goalEstimate.estimatedDate) {
+  if (goalIsAchieved) {
+    summary.querySelector(".projection-detail").textContent = `Objectif ${formatWeight(POIDS_OBJECTIF)} kg atteint · poids actuel : ${formatWeight(goalAchievement.currentWeight)} kg.`;
+  } else if (goalEstimate.estimatedDate) {
     summary.querySelector(".projection-detail").textContent = goalEstimate.daysRemaining === 0
       ? `Objectif ${formatWeight(POIDS_OBJECTIF)} kg déjà atteint.`
       : `Projection au ${formatDate(goalEstimate.estimatedDate)} (${goalEstimate.daysRemaining} jours).`;
@@ -1334,6 +1419,7 @@ function renderProjection(series, model) {
   }
 
   const canvas = document.getElementById("projectionChart");
+  canvas.setAttribute("aria-label", goalIsAchieved ? "Tendance du poids après l'objectif" : "Projection vers l'objectif");
   const labels = [
     ...series.map((entry) => entry.isoDate),
     ...futureProjection.map((entry) => entry.label)
@@ -1352,7 +1438,7 @@ function renderProjection(series, model) {
       connectGaps: true
     },
     {
-      label: "Projection",
+      label: goalIsAchieved ? "Tendance" : "Projection",
       values: trendValues,
       color: COLORS.raw,
       lineWidth: 2,
@@ -1833,6 +1919,17 @@ function getLatestValueEntry(series) {
   return [...series].reverse().find((entry) => Number.isFinite(entry.weight)) || null;
 }
 
+function getGoalAchievement(series) {
+  const achievedEntry = series.find((entry) => Number.isFinite(entry.weight) && entry.weight <= POIDS_OBJECTIF) || null;
+  const latestEntry = getLatestValueEntry(series);
+
+  return {
+    achieved: Boolean(achievedEntry),
+    achievedEntry,
+    currentWeight: latestEntry?.weight ?? null
+  };
+}
+
 function filterLineAxisLabel(label, index, labels) {
   const every = Math.max(1, Math.ceil(labels.length / 5));
   return index % every === 0 || index === labels.length - 1 ? formatAxisDate(label) : "";
@@ -1970,6 +2067,39 @@ function formatSignedWeight(value) {
 
   const absolute = formatWeight(Math.abs(value));
   return `${value > 0 ? "+" : value < 0 ? "-" : ""}${absolute}`;
+}
+
+function formatPercentage(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
+function formatSignedDecimal(value) {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  const absolute = Math.abs(value).toFixed(1).replace(".", ",");
+  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${absolute}`;
+}
+
+function calculateBmi(weight) {
+  return weight / ((TAILLE_CM / 100) ** 2);
+}
+
+function calculateAge(isoBirthDate, today = new Date()) {
+  const [birthYear, birthMonth, birthDay] = isoBirthDate.split("-").map(Number);
+  let age = today.getFullYear() - birthYear;
+  const birthdayHasPassed = today.getMonth() + 1 > birthMonth
+    || (today.getMonth() + 1 === birthMonth && today.getDate() >= birthDay);
+
+  if (!birthdayHasPassed) {
+    age -= 1;
+  }
+
+  return age;
 }
 
 function formatDate(date) {

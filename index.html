@@ -53,7 +53,7 @@
         </div>
       </div>
       <div class="insights-grid">
-        <article class="visual-card">
+        <article class="visual-card goal-progress-card">
           <div class="visual-card-head">
             <h3>Progression vers l'objectif</h3>
             <strong class="visual-value" id="goalProgressValue">--</strong>
@@ -63,12 +63,27 @@
             <span class="progress-fill" id="goalProgressFill"></span>
           </div>
           <div class="track-scale">
-            <span id="goalStartLabel">Départ : --</span>
+            <span id="goalStartLabel">Maximum : --</span>
             <span id="goalTargetLabel">Objectif : --</span>
           </div>
         </article>
 
-        <article class="visual-card">
+        <article class="visual-card lower-bound-card">
+          <div class="visual-card-head">
+            <h3>Zone sous l'objectif</h3>
+            <strong class="visual-value" id="lowerBoundValue">--</strong>
+          </div>
+          <p class="visual-detail" id="lowerBoundDetail">En attente des données.</p>
+          <div class="context-track lower-bound-track" id="lowerBoundTrack" role="img" aria-label="Position du poids actuel entre 60 et 70 kg">
+            <span class="context-marker" id="lowerBoundMarker"></span>
+          </div>
+          <div class="track-scale">
+            <span id="lowerBoundMinLabel">Seuil bas : 60,0 kg</span>
+            <span id="lowerBoundMaxLabel">Objectif : 70,0 kg</span>
+          </div>
+        </article>
+
+        <article class="visual-card regularity-card">
           <div class="visual-card-head">
             <h3>Régularité sur 28 jours</h3>
             <strong class="visual-value" id="regularityCount">-- / 28</strong>
@@ -81,7 +96,7 @@
           </div>
         </article>
 
-        <article class="visual-card">
+        <article class="visual-card monthly-summary-card">
           <div class="visual-card-head">
             <h3>Résumé mensuel</h3>
             <strong class="visual-value month-name" id="monthlyLabel">--</strong>
@@ -94,7 +109,7 @@
           </dl>
         </article>
 
-        <article class="visual-card">
+        <article class="visual-card context-card">
           <div class="visual-card-head">
             <h3>Aujourd'hui en contexte</h3>
             <strong class="visual-value" id="contextCurrentValue">--</strong>
@@ -107,6 +122,21 @@
             <span id="contextMinLabel">Minimum : --</span>
             <span id="contextMaxLabel">Maximum : --</span>
           </div>
+        </article>
+
+        <article class="visual-card bmi-card">
+          <div class="visual-card-head">
+            <h3>IMC et repères</h3>
+            <strong class="visual-value" id="bmiCurrentValue">--</strong>
+          </div>
+          <p class="visual-detail" id="bmiDetail">Homme · 1,78 m</p>
+          <dl class="monthly-grid bmi-grid">
+            <div><dt>À l'objectif</dt><dd id="bmiGoalValue">--</dd></div>
+            <div><dt>Au maximum</dt><dd id="bmiMaxValue">--</dd></div>
+            <div><dt>Évolution</dt><dd id="bmiChangeValue">--</dd></div>
+            <div><dt>Repos estimé</dt><dd id="restingEnergyValue">--</dd></div>
+          </dl>
+          <p class="visual-detail" id="weightLossPercentDetail">En attente des données.</p>
         </article>
       </div>
     </section>
