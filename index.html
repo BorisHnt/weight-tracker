@@ -223,7 +223,19 @@
       <div class="section-head">
         <div>
           <h2 id="activity-title">Activité quotidienne</h2>
+          <p class="projection-detail">Les pas et la distance du jour sont disponibles le lendemain matin.</p>
         </div>
+        <label class="chart-control activity-range-control">
+          <span class="chart-control-label">Période</span>
+          <select id="activityRangeSelect" class="chart-select" aria-label="Période du graphique d'activité">
+            <option value="all" selected>Depuis le début</option>
+            <option value="1y">Dernière année</option>
+            <option value="6m">6 derniers mois</option>
+            <option value="3m">3 derniers mois</option>
+            <option value="28d">28 jours</option>
+            <option value="7d">7 jours</option>
+          </select>
+        </label>
       </div>
       <div class="activity-stats-grid">
         <article class="stat-card">
@@ -237,35 +249,113 @@
           <span class="stat-meta" id="latestDistanceMeta">En attente des données.</span>
         </article>
         <article class="stat-card">
-          <span class="stat-label">Moyenne sur 28 jours</span>
+          <span class="stat-label">Moyenne depuis le début</span>
           <strong class="stat-value" id="averageStepsValue">--</strong>
           <span class="stat-meta" id="averageStepsMeta">Pas par jour renseigné</span>
         </article>
         <article class="stat-card">
-          <span class="stat-label">Distance sur 28 jours</span>
+          <span class="stat-label">Distance depuis le début</span>
           <strong class="stat-value" id="distance28Value">--</strong>
           <span class="stat-meta" id="distance28Meta">Jours renseignés</span>
         </article>
       </div>
-      <div class="dual-chart-grid activity-charts">
-        <article class="subpanel">
-          <div class="subpanel-head">
-            <h3>Pas</h3>
-            <p>28 derniers jours</p>
+      <article class="subpanel activity-history-panel">
+        <div class="subpanel-head">
+          <h3>Pas et distance</h3>
+          <div class="legend">
+            <span class="legend-item"><i class="swatch swatch-ma7"></i>Pas</span>
+            <span class="legend-item"><i class="swatch swatch-raw"></i>Distance</span>
           </div>
-          <div class="canvas-wrap short">
-            <canvas id="stepsChart" aria-label="Nombre de pas sur les 28 derniers jours" role="img"></canvas>
+        </div>
+        <div class="canvas-wrap tall">
+          <canvas id="activityHistoryChart" aria-label="Évolution du nombre de pas et de la distance" role="img"></canvas>
+        </div>
+      </article>
+    </section>
+
+    <section class="container section" aria-labelledby="lag-effect-title">
+      <div class="section-head">
+        <div>
+          <h2 id="lag-effect-title">Effet différé de l'activité</h2>
+          <p class="projection-detail">Association entre les pas d'un jour et l'évolution du poids dans les jours suivants.</p>
+        </div>
+      </div>
+      <div class="projection-grid">
+        <div class="projection-copy">
+          <p class="projection-label">Décalage le plus marqué</p>
+          <strong class="projection-value" id="lagBestValue">--</strong>
+          <p class="projection-detail" id="lagEffectDetail">En attente des données.</p>
+        </div>
+        <div class="canvas-wrap short">
+          <canvas id="lagEffectChart" aria-label="Corrélation entre les pas et l'évolution future du poids sur sept jours" role="img"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="steps-heatmap-title">
+      <div class="section-head">
+        <div>
+          <h2 id="steps-heatmap-title">Objectif de 8 000 pas</h2>
+          <p class="projection-detail">Une vue quotidienne de la progression vers l'objectif.</p>
+        </div>
+      </div>
+      <article class="heatmap-panel">
+        <div class="heatmap-frame">
+          <div class="heatmap-shell">
+            <div class="heatmap-y-axis" id="stepsHeatmapYAxis" aria-hidden="true"></div>
+            <div class="heatmap-scroll">
+              <div class="heatmap-months" id="stepsHeatmapMonths" aria-hidden="true"></div>
+              <div class="heatmap-grid" id="stepsHeatmapGrid"></div>
+            </div>
           </div>
-        </article>
-        <article class="subpanel">
-          <div class="subpanel-head">
-            <h3>Distance</h3>
-            <p>28 derniers jours</p>
-          </div>
-          <div class="canvas-wrap short">
-            <canvas id="distanceChart" aria-label="Distance parcourue sur les 28 derniers jours" role="img"></canvas>
-          </div>
-        </article>
+          <div class="heatmap-legend" id="stepsHeatmapLegend" aria-hidden="true"></div>
+        </div>
+      </article>
+    </section>
+
+    <section class="container section" aria-labelledby="stride-title">
+      <div class="section-head">
+        <div>
+          <h2 id="stride-title">Distance moyenne par pas</h2>
+          <p class="projection-detail">Longueur moyenne estimée d'un pas pour chaque journée.</p>
+        </div>
+        <label class="chart-control activity-range-control">
+          <span class="chart-control-label">Période</span>
+          <select id="strideRangeSelect" class="chart-select" aria-label="Période du graphique de distance moyenne par pas">
+            <option value="all" selected>Depuis le début</option>
+            <option value="1y">Dernière année</option>
+            <option value="6m">6 derniers mois</option>
+            <option value="3m">3 derniers mois</option>
+            <option value="28d">28 jours</option>
+            <option value="7d">7 jours</option>
+          </select>
+        </label>
+      </div>
+      <div class="projection-grid">
+        <div class="projection-copy">
+          <p class="projection-label">Moyenne de la période</p>
+          <strong class="projection-value" id="strideAverageValue">--</strong>
+          <p class="projection-detail" id="strideDetail">En attente des données.</p>
+        </div>
+        <div class="canvas-wrap short">
+          <canvas id="strideChart" aria-label="Distance moyenne parcourue par pas et par jour" role="img"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="container section" aria-labelledby="steps-weight-title">
+      <div class="section-head">
+        <div>
+          <h2 id="steps-weight-title">Pas et poids</h2>
+          <p class="projection-detail">Évolution conjointe depuis le début des enregistrements.</p>
+        </div>
+        <div class="legend">
+          <span class="legend-item"><i class="swatch swatch-ma7"></i>Pas</span>
+          <span class="legend-item"><i class="swatch swatch-ma28"></i>Poids</span>
+        </div>
+      </div>
+      <div class="canvas-wrap tall">
+        <canvas id="stepsWeightChart" aria-label="Évolution du nombre de pas et du poids" role="img"></canvas>
       </div>
     </section>
 

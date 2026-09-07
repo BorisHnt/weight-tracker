@@ -1,6 +1,7 @@
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSjT2SSS6qwBRkxbPD73BjDecvjJACuHFoHKrRXssEgOrHmvj5O9b_5NBDYarw3AMKFPKvYYiHfezfH/pub?gid=0&single=true&output=csv";
 const POIDS_OBJECTIF = 70;
 const POIDS_SEUIL_BAS = 60;
+const OBJECTIF_PAS = 8000;
 const TAILLE_CM = 178;
 const DATE_NAISSANCE = "1992-02-24";
 const NB_DECIMALES = 1;
@@ -39,6 +40,15 @@ const CHART_RANGES = {
   "1y": 365,
   all: null
 };
+const ACTIVITY_RANGES = {
+  "7d": 7,
+  "28d": 28,
+  "3m": 92,
+  "6m": 183,
+  "1y": 365,
+  all: null
+};
+const STEPS_HEATMAP_COLORS = [...HEATMAP_COLORS].reverse();
 const PROJECTION_MODES = {
   ma7: {
     label: "MA7",
@@ -549,9 +559,19 @@ function renderCurrentContext(series, latestEntry) {
 }
 
 function renderActivity(series) {
+  renderActivityStats(series);
+  setupActivityHistory(series);
+  renderLagEffect(series);
+  renderStepsGoalHeatmap(series);
+  setupStrideChart(series);
+  renderStepsWeightChart(series);
+}
+
+function renderActivityStats(series) {
   const latestStepsEntry = [...series].reverse().find((entry) => Number.isFinite(entry.steps));
   const latestDistanceEntry = [...series].reverse().find((entry) => Number.isFinite(entry.distanceKm));
-  const lastDate = series.at(-1)?.date;
+  const stepEntries = series.filter((entry) => Number.isFinite(entry.steps));
+  const distanceEntries = series.filter((entry) => Number.isFinite(entry.distanceKm));
 
   if (latestStepsEntry) {
     document.getElementById("latestStepsValue").textContent = formatSteps(latestStepsEntry.steps);
@@ -563,14 +583,6 @@ function renderActivity(series) {
     document.getElementById("latestDistanceMeta").textContent = formatDate(latestDistanceEntry.date);
   }
 
-  if (!lastDate) {
-    return;
-  }
-
-  const cutoff = addDays(lastDate, -27);
-  const recentEntries = series.filter((entry) => entry.date >= cutoff && entry.date <= lastDate);
-  const stepEntries = recentEntries.filter((entry) => Number.isFinite(entry.steps));
-  const distanceEntries = recentEntries.filter((entry) => Number.isFinite(entry.distanceKm));
   const averageSteps = stepEntries.length
     ? stepEntries.reduce((sum, entry) => sum + entry.steps, 0) / stepEntries.length
     : null;
@@ -579,31 +591,287 @@ function renderActivity(series) {
     : null;
 
   document.getElementById("averageStepsValue").textContent = Number.isFinite(averageSteps) ? formatSteps(Math.round(averageSteps)) : "--";
-  document.getElementById("averageStepsMeta").textContent = `${stepEntries.length} jour${stepEntries.length > 1 ? "s" : ""} renseigné${stepEntries.length > 1 ? "s" : ""}`;
+  document.getElementById("averageStepsMeta").textContent = `${stepEntries.length} jours renseignés`;
   document.getElementById("distance28Value").textContent = Number.isFinite(totalDistance) ? `${formatDistance(totalDistance)} km` : "--";
-  document.getElementById("distance28Meta").textContent = `${distanceEntries.length} jour${distanceEntries.length > 1 ? "s" : ""} renseigné${distanceEntries.length > 1 ? "s" : ""}`;
+  document.getElementById("distance28Meta").textContent = `${distanceEntries.length} jours renseignés`;
+}
 
-  const toChartEntries = (key, color) => recentEntries.map((entry) => ({
-    label: entry.isoDate,
-    shortLabel: formatShortDate(entry.date),
-    value: Number.isFinite(entry[key]) ? entry[key] : null,
-    color: Number.isFinite(entry[key]) ? color : "rgba(232, 209, 197, 0.55)"
-  }));
+function setupActivityHistory(series) {
+  const select = document.getElementById("activityRangeSelect");
+  const update = () => renderActivityHistoryChart(filterActivityRange(series, select.value));
 
-  drawBarChart(document.getElementById("stepsChart"), toChartEntries("steps", COLORS.ma7), {
-    yFormatter: formatCompactSteps,
-    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
-    minHeight: 210
+  select.addEventListener("change", update);
+  update();
+}
+
+function renderActivityHistoryChart(entries) {
+  drawDualLineChart(document.getElementById("activityHistoryChart"), [
+    {
+      axis: "left",
+      values: entries.map((entry) => entry.steps),
+      color: COLORS.ma7,
+      lineWidth: 2.2,
+      connectGaps: false
+    },
+    {
+      axis: "right",
+      values: entries.map((entry) => entry.distanceKm),
+      color: COLORS.raw,
+      lineWidth: 1.5,
+      dash: [5, 4],
+      connectGaps: false
+    }
+  ], {
+    labels: entries.map((entry) => entry.isoDate),
+    leftFormatter: formatCompactSteps,
+    rightFormatter: (value) => `${formatDistance(value)} km`,
+    leftStartAtZero: true,
+    rightStartAtZero: true,
+    minHeight: 280
   });
-  drawBarChart(document.getElementById("distanceChart"), toChartEntries("distanceKm", COLORS.raw), {
-    yFormatter: (value) => `${formatDistance(value)} km`,
-    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
+}
+
+function renderLagEffect(series) {
+  const correlations = Array.from({ length: 7 }, (_, index) => {
+    const lag = index + 1;
+    const pairs = [];
+
+    for (let cursor = 0; cursor + lag < series.length; cursor += 1) {
+      const current = series[cursor];
+      const future = series[cursor + lag];
+
+      if (Number.isFinite(current.steps) && Number.isFinite(current.weight) && Number.isFinite(future.weight)) {
+        pairs.push({ x: current.steps, y: future.weight - current.weight });
+      }
+    }
+
+    return {
+      lag,
+      correlation: pearsonCorrelation(pairs),
+      count: pairs.length
+    };
+  });
+  const valid = correlations.filter((entry) => Number.isFinite(entry.correlation));
+  const best = valid.reduce((selected, entry) => (
+    !selected || Math.abs(entry.correlation) > Math.abs(selected.correlation) ? entry : selected
+  ), null);
+
+  document.getElementById("lagBestValue").textContent = best ? `J+${best.lag} · r = ${formatCorrelation(best.correlation)}` : "--";
+  document.getElementById("lagEffectDetail").textContent = best
+    ? `${best.count} journées comparées. ${describeCorrelation(best.correlation)} Corrélation statistique, sans preuve de causalité.`
+    : "Données insuffisantes pour calculer une corrélation.";
+
+  drawBarChart(document.getElementById("lagEffectChart"), correlations.map((entry) => ({
+    label: `J+${entry.lag}`,
+    shortLabel: `J+${entry.lag}`,
+    value: entry.correlation,
+    color: entry.correlation <= 0 ? COLORS.ma7 : COLORS.ma28
+  })), {
+    yFormatter: formatCorrelation,
+    xTickFormatter: (item) => item.shortLabel,
     minHeight: 210
   });
 }
 
+function renderStepsGoalHeatmap(series) {
+  const grid = document.getElementById("stepsHeatmapGrid");
+  const monthRow = document.getElementById("stepsHeatmapMonths");
+  const yAxis = document.getElementById("stepsHeatmapYAxis");
+  const legend = document.getElementById("stepsHeatmapLegend");
+  const tooltip = document.getElementById("tooltip");
+  const firstEntry = series[0];
+
+  grid.replaceChildren();
+  monthRow.replaceChildren();
+  yAxis.replaceChildren();
+  legend.replaceChildren();
+
+  if (!firstEntry) {
+    return;
+  }
+
+  ["", "L", "M", "M", "J", "V", "S", "D"].forEach((label) => {
+    const item = document.createElement("span");
+    item.textContent = label;
+    yAxis.appendChild(item);
+  });
+
+  const gridStart = startOfISOWeek(firstEntry.date);
+  const gridEnd = endOfISOWeek(series.at(-1).date);
+  const totalDays = differenceInDays(gridEnd, gridStart) + 1;
+  const weekCount = Math.ceil(totalDays / 7);
+  const entryMap = new Map(series.map((entry) => [entry.isoDate, entry]));
+  let previousMonthKey = "";
+
+  for (let weekIndex = 0; weekIndex < weekCount; weekIndex += 1) {
+    const weekStart = addDays(gridStart, weekIndex * 7);
+    const monthCell = document.createElement("div");
+    const monthLabel = getHeatmapMonthLabel(weekStart, previousMonthKey, firstEntry.date);
+    monthCell.className = "heatmap-month";
+
+    if (monthLabel.text) {
+      const text = document.createElement("span");
+      text.textContent = monthLabel.text;
+      monthCell.appendChild(text);
+      previousMonthKey = monthLabel.key;
+    }
+
+    monthRow.appendChild(monthCell);
+  }
+
+  for (let dayIndex = 0; dayIndex < totalDays; dayIndex += 1) {
+    const date = addDays(gridStart, dayIndex);
+    const entry = entryMap.get(formatISODate(date));
+    const cell = document.createElement("button");
+    const fill = document.createElement("span");
+    cell.type = "button";
+    cell.className = "heatmap-cell";
+    fill.className = "heatmap-fill";
+
+    if (Number.isFinite(entry?.steps)) {
+      const ratio = Math.max(0, entry.steps / OBJECTIF_PAS);
+      const colorIndex = Math.min(STEPS_HEATMAP_COLORS.length - 1, Math.floor(ratio * STEPS_HEATMAP_COLORS.length));
+      const goalLabel = entry.steps >= OBJECTIF_PAS ? "Objectif atteint" : `${formatPercentage(ratio * 100)} % de l'objectif`;
+      fill.style.backgroundColor = STEPS_HEATMAP_COLORS[colorIndex];
+      cell.dataset.tooltip = `${formatDate(date)}\nPas : ${formatSteps(entry.steps)}\nDistance : ${Number.isFinite(entry.distanceKm) ? `${formatDistance(entry.distanceKm)} km` : "N/A"}\n${goalLabel}`;
+    } else {
+      cell.classList.add("is-missing");
+      cell.dataset.tooltip = `${formatDate(date)}\nActivité non disponible`;
+    }
+
+    cell.setAttribute("aria-label", cell.dataset.tooltip.replace(/\n/g, ", "));
+    cell.appendChild(fill);
+    bindTooltip(cell, tooltip);
+    grid.appendChild(cell);
+  }
+
+  const lowLabel = document.createElement("span");
+  lowLabel.textContent = "0";
+  legend.appendChild(lowLabel);
+  STEPS_HEATMAP_COLORS.forEach((color) => {
+    const swatch = document.createElement("span");
+    const fill = document.createElement("span");
+    swatch.className = "heatmap-legend-swatch";
+    fill.style.backgroundColor = color;
+    swatch.appendChild(fill);
+    legend.appendChild(swatch);
+  });
+  const goalLabel = document.createElement("span");
+  goalLabel.textContent = `${formatSteps(OBJECTIF_PAS)}+`;
+  legend.appendChild(goalLabel);
+}
+
+function setupStrideChart(series) {
+  const select = document.getElementById("strideRangeSelect");
+  const update = () => renderStrideChart(filterActivityRange(series, select.value));
+
+  select.addEventListener("change", update);
+  update();
+}
+
+function renderStrideChart(entries) {
+  const strideValues = entries.map((entry) => (
+    Number.isFinite(entry.steps) && entry.steps > 0 && Number.isFinite(entry.distanceKm)
+      ? (entry.distanceKm * 100000) / entry.steps
+      : null
+  ));
+  const measuredValues = strideValues.filter(Number.isFinite);
+  const average = measuredValues.length
+    ? measuredValues.reduce((sum, value) => sum + value, 0) / measuredValues.length
+    : null;
+
+  document.getElementById("strideAverageValue").textContent = Number.isFinite(average) ? `${formatCentimeters(average)} cm` : "--";
+  document.getElementById("strideDetail").textContent = `${measuredValues.length} journée${measuredValues.length > 1 ? "s" : ""} calculée${measuredValues.length > 1 ? "s" : ""} sur la période.`;
+
+  drawLineChart(document.getElementById("strideChart"), [{
+    label: "Longueur moyenne",
+    values: strideValues,
+    color: COLORS.ma28,
+    lineWidth: 2,
+    showPoints: entries.length <= 92,
+    pointRadius: 2.4,
+    connectGaps: false
+  }], {
+    labels: entries.map((entry) => entry.isoDate),
+    yFormatter: (value) => `${formatCentimeters(value)} cm`,
+    xTickFormatter: (label, index, labels) => filterLineAxisLabel(label, index, labels),
+    minHeight: 210
+  });
+}
+
+function renderStepsWeightChart(series) {
+  drawDualLineChart(document.getElementById("stepsWeightChart"), [
+    {
+      axis: "left",
+      values: series.map((entry) => entry.steps),
+      color: COLORS.ma7,
+      connectGaps: false
+    },
+    {
+      axis: "right",
+      values: series.map((entry) => entry.weight),
+      color: COLORS.ma28,
+      connectGaps: false
+    }
+  ], {
+    labels: series.map((entry) => entry.isoDate),
+    leftFormatter: formatCompactSteps,
+    rightFormatter: (value) => `${formatWeight(value)} kg`,
+    leftStartAtZero: true,
+    rightStartAtZero: false,
+    minHeight: 280
+  });
+}
+
+function filterActivityRange(series, rangeKey) {
+  const days = ACTIVITY_RANGES[rangeKey] ?? null;
+
+  if (!days || !series.length) {
+    return series;
+  }
+
+  const cutoff = addDays(series.at(-1).date, -(days - 1));
+  return series.filter((entry) => entry.date >= cutoff);
+}
+
+function pearsonCorrelation(pairs) {
+  if (pairs.length < 3) {
+    return null;
+  }
+
+  const meanX = pairs.reduce((sum, pair) => sum + pair.x, 0) / pairs.length;
+  const meanY = pairs.reduce((sum, pair) => sum + pair.y, 0) / pairs.length;
+  let numerator = 0;
+  let sumSquareX = 0;
+  let sumSquareY = 0;
+
+  pairs.forEach((pair) => {
+    const deviationX = pair.x - meanX;
+    const deviationY = pair.y - meanY;
+    numerator += deviationX * deviationY;
+    sumSquareX += deviationX ** 2;
+    sumSquareY += deviationY ** 2;
+  });
+
+  const denominator = Math.sqrt(sumSquareX * sumSquareY);
+  return denominator ? numerator / denominator : null;
+}
+
+function describeCorrelation(value) {
+  const strength = Math.abs(value) < 0.15 ? "Association très faible." : Math.abs(value) < 0.35 ? "Association faible." : Math.abs(value) < 0.6 ? "Association modérée." : "Association marquée.";
+  const direction = value < 0 ? "Davantage de pas est associé à une baisse du poids." : "Davantage de pas est associé à une hausse du poids.";
+  return `${strength} ${direction}`;
+}
+
 function drawLineChart(canvas, datasets, options = {}) {
   canvas.__chartType = "line";
+  canvas.__chartData = { datasets, options };
+  setupCanvasRedraw(canvas);
+  renderCanvasChart(canvas);
+}
+
+function drawDualLineChart(canvas, datasets, options = {}) {
+  canvas.__chartType = "dualLine";
   canvas.__chartData = { datasets, options };
   setupCanvasRedraw(canvas);
   renderCanvasChart(canvas);
@@ -1575,6 +1843,11 @@ function renderCanvasChart(canvas) {
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
   context.clearRect(0, 0, cssWidth, cssHeight);
 
+  if (chartType === "dualLine") {
+    renderDualLineChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.datasets, canvas.__chartData.options);
+    return;
+  }
+
   if (chartType === "line") {
     renderLineChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.datasets, canvas.__chartData.options);
     return;
@@ -1586,6 +1859,118 @@ function renderCanvasChart(canvas) {
   }
 
   renderBarChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.data, canvas.__chartData.options);
+}
+
+function renderDualLineChartToCanvas(context, width, height, datasets, options) {
+  const padding = { top: 18, right: 62, bottom: 34, left: 62 };
+  const plotWidth = Math.max(10, width - padding.left - padding.right);
+  const plotHeight = Math.max(10, height - padding.top - padding.bottom);
+  const leftValues = datasets.filter((dataset) => dataset.axis === "left").flatMap((dataset) => dataset.values.filter(Number.isFinite));
+  const rightValues = datasets.filter((dataset) => dataset.axis === "right").flatMap((dataset) => dataset.values.filter(Number.isFinite));
+
+  if (!leftValues.length && !rightValues.length) {
+    drawEmptyState(context, width, height, "Données insuffisantes");
+    return;
+  }
+
+  const getRange = (values, startAtZero) => {
+    if (!values.length) {
+      return { min: 0, max: 1 };
+    }
+
+    let min = startAtZero ? 0 : Math.min(...values);
+    let max = Math.max(...values);
+
+    if (min === max) {
+      min = startAtZero ? 0 : min - 1;
+      max += 1;
+    } else if (!startAtZero) {
+      const paddingValue = (max - min) * 0.08;
+      min -= paddingValue;
+      max += paddingValue;
+    } else {
+      max *= 1.08;
+    }
+
+    return { min, max };
+  };
+  const leftRange = getRange(leftValues, options.leftStartAtZero);
+  const rightRange = getRange(rightValues, options.rightStartAtZero);
+  const maxLength = Math.max(...datasets.map((dataset) => dataset.values.length), 1);
+  const xForIndex = (index) => padding.left + (maxLength <= 1 ? plotWidth / 2 : (index / (maxLength - 1)) * plotWidth);
+  const yForValue = (value, range) => padding.top + plotHeight - ((value - range.min) / (range.max - range.min)) * plotHeight;
+
+  context.strokeStyle = COLORS.axis;
+  context.lineWidth = 1;
+  context.beginPath();
+  context.moveTo(padding.left, padding.top);
+  context.lineTo(padding.left, padding.top + plotHeight);
+  context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
+  context.lineTo(padding.left + plotWidth, padding.top);
+  context.stroke();
+
+  const ticks = 4;
+  context.font = "11px Avenir Next, Segoe UI, sans-serif";
+  context.textBaseline = "middle";
+
+  for (let tick = 0; tick <= ticks; tick += 1) {
+    const ratio = tick / ticks;
+    const y = padding.top + plotHeight - ratio * plotHeight;
+    const leftValue = leftRange.min + ratio * (leftRange.max - leftRange.min);
+    const rightValue = rightRange.min + ratio * (rightRange.max - rightRange.min);
+    context.strokeStyle = COLORS.grid;
+    context.beginPath();
+    context.moveTo(padding.left, y);
+    context.lineTo(padding.left + plotWidth, y);
+    context.stroke();
+    context.fillStyle = COLORS.muted;
+    context.textAlign = "right";
+    context.fillText(options.leftFormatter ? options.leftFormatter(leftValue) : String(leftValue), padding.left - 8, y);
+    context.textAlign = "left";
+    context.fillText(options.rightFormatter ? options.rightFormatter(rightValue) : String(rightValue), padding.left + plotWidth + 8, y);
+  }
+
+  const labels = options.labels || [];
+  const tickStep = Math.max(1, Math.ceil(labels.length / 5));
+  context.textAlign = "center";
+  context.textBaseline = "top";
+  labels.forEach((label, index) => {
+    if (index % tickStep !== 0 && index !== labels.length - 1) {
+      return;
+    }
+
+    context.fillStyle = COLORS.muted;
+    context.fillText(formatAxisDate(label), xForIndex(index), padding.top + plotHeight + 10);
+  });
+
+  datasets.forEach((dataset) => {
+    const range = dataset.axis === "right" ? rightRange : leftRange;
+    const points = dataset.values.map((value, index) => (
+      Number.isFinite(value) ? { x: xForIndex(index), y: yForValue(value, range) } : null
+    ));
+    const segments = dataset.connectGaps === false ? splitContinuousPoints(points) : [points.filter(Boolean)];
+    context.save();
+    context.strokeStyle = dataset.color || COLORS.text;
+    context.lineWidth = dataset.lineWidth || 1.8;
+    context.lineJoin = "round";
+    context.lineCap = "round";
+
+    if (dataset.dash) {
+      context.setLineDash(dataset.dash);
+    }
+
+    segments.forEach((segment) => {
+      if (!segment.length) {
+        return;
+      }
+
+      context.beginPath();
+      context.moveTo(segment[0].x, segment[0].y);
+      segment.slice(1).forEach((point) => context.lineTo(point.x, point.y));
+      context.stroke();
+    });
+    context.restore();
+  });
 }
 
 function renderLineChartToCanvas(context, width, height, datasets, options) {
@@ -2183,6 +2568,24 @@ function formatCompactSteps(value) {
 function formatDistance(value) {
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 1,
+    maximumFractionDigits: 2
+  }).format(value);
+}
+
+function formatCentimeters(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(value);
+}
+
+function formatCorrelation(value) {
+  if (!Number.isFinite(value)) {
+    return "--";
+  }
+
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(value);
 }

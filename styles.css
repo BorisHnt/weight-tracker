@@ -199,6 +199,11 @@ canvas {
   gap: var(--gap);
 }
 
+.activity-range-control {
+  width: min(100%, 190px);
+  margin-left: auto;
+}
+
 .stat-card,
 .subpanel,
 .projection-copy {
@@ -463,6 +468,11 @@ canvas {
   margin: 0;
   color: var(--muted);
   font-size: 0.78rem;
+}
+
+.activity-history-panel {
+  display: grid;
+  gap: 12px;
 }
 
 .projection-grid {
