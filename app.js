@@ -108,12 +108,15 @@ async function init() {
     renderPrimaryChart(enrichedSeries);
     setupBarsChartControls(enrichedSeries);
     setupProjectionControls(enrichedSeries, goalAchievement);
+    renderActivity(enrichedSeries);
     renderHeatmap(enrichedSeries);
     renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend");
     renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend");
     renderMonthlyAnalysis(enrichedSeries, monthlyPeriods);
 
-    statusText.textContent = `${records.length} mesures chargées du ${formatDate(firstEntry?.date)} au ${formatDate(latestEntry?.date)}.`;
+    const weightCount = records.filter((entry) => Number.isFinite(entry.weight)).length;
+    const activityCount = records.filter((entry) => Number.isFinite(entry.steps) || Number.isFinite(entry.distanceKm)).length;
+    statusText.textContent = `${weightCount} pesées et ${activityCount} jours d'activité chargés du ${formatDate(series[0]?.date)} au ${formatDate(series.at(-1)?.date)}.`;
   } catch (error) {
     setError(error.message || "Impossible de charger le CSV.");
   }
@@ -140,30 +143,49 @@ function parseCSV(csvText) {
     return [];
   }
 
+  const headers = lines[0].split(",").map((value) => value.trim().toLowerCase());
+  const dateIndex = headers.indexOf("date");
+  const weightIndex = headers.indexOf("weight_kg");
+  const stepsIndex = headers.indexOf("steps");
+  const distanceIndex = headers.indexOf("distance_km");
   const entries = new Map();
 
   for (let index = 1; index < lines.length; index += 1) {
-    const [dateRaw = "", weightRaw = ""] = lines[index].split(",").map((value) => value.trim());
+    const values = lines[index].split(",").map((value) => value.trim());
+    const dateRaw = values[dateIndex] || "";
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
       continue;
     }
 
     const date = createUTCDate(dateRaw);
-    const weight = Number.parseFloat(weightRaw.replace(",", "."));
+    const weight = parseOptionalNumber(values[weightIndex]);
+    const steps = parseOptionalNumber(values[stepsIndex]);
+    const distanceKm = parseOptionalNumber(values[distanceIndex]);
 
-    if (Number.isNaN(date.getTime()) || Number.isNaN(weight)) {
+    if (Number.isNaN(date.getTime())) {
       continue;
     }
 
     entries.set(dateRaw, {
       date,
       isoDate: dateRaw,
-      weight
+      weight,
+      steps,
+      distanceKm
     });
   }
 
   return Array.from(entries.values()).sort((a, b) => a.date - b.date);
+}
+
+function parseOptionalNumber(value = "") {
+  if (!value.trim()) {
+    return null;
+  }
+
+  const parsed = Number.parseFloat(value.replace(",", "."));
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function computeMovingAverage(series, windowSize) {
@@ -524,6 +546,60 @@ function renderCurrentContext(series, latestEntry) {
     "aria-label",
     `Poids actuel ${formatWeight(latestEntry.weight)} kg, entre ${formatWeight(minWeight)} et ${formatWeight(maxWeight)} kg`
   );
+}
+
+function renderActivity(series) {
+  const latestStepsEntry = [...series].reverse().find((entry) => Number.isFinite(entry.steps));
+  const latestDistanceEntry = [...series].reverse().find((entry) => Number.isFinite(entry.distanceKm));
+  const lastDate = series.at(-1)?.date;
+
+  if (latestStepsEntry) {
+    document.getElementById("latestStepsValue").textContent = formatSteps(latestStepsEntry.steps);
+    document.getElementById("latestStepsMeta").textContent = formatDate(latestStepsEntry.date);
+  }
+
+  if (latestDistanceEntry) {
+    document.getElementById("latestDistanceValue").textContent = `${formatDistance(latestDistanceEntry.distanceKm)} km`;
+    document.getElementById("latestDistanceMeta").textContent = formatDate(latestDistanceEntry.date);
+  }
+
+  if (!lastDate) {
+    return;
+  }
+
+  const cutoff = addDays(lastDate, -27);
+  const recentEntries = series.filter((entry) => entry.date >= cutoff && entry.date <= lastDate);
+  const stepEntries = recentEntries.filter((entry) => Number.isFinite(entry.steps));
+  const distanceEntries = recentEntries.filter((entry) => Number.isFinite(entry.distanceKm));
+  const averageSteps = stepEntries.length
+    ? stepEntries.reduce((sum, entry) => sum + entry.steps, 0) / stepEntries.length
+    : null;
+  const totalDistance = distanceEntries.length
+    ? distanceEntries.reduce((sum, entry) => sum + entry.distanceKm, 0)
+    : null;
+
+  document.getElementById("averageStepsValue").textContent = Number.isFinite(averageSteps) ? formatSteps(Math.round(averageSteps)) : "--";
+  document.getElementById("averageStepsMeta").textContent = `${stepEntries.length} jour${stepEntries.length > 1 ? "s" : ""} renseigné${stepEntries.length > 1 ? "s" : ""}`;
+  document.getElementById("distance28Value").textContent = Number.isFinite(totalDistance) ? `${formatDistance(totalDistance)} km` : "--";
+  document.getElementById("distance28Meta").textContent = `${distanceEntries.length} jour${distanceEntries.length > 1 ? "s" : ""} renseigné${distanceEntries.length > 1 ? "s" : ""}`;
+
+  const toChartEntries = (key, color) => recentEntries.map((entry) => ({
+    label: entry.isoDate,
+    shortLabel: formatShortDate(entry.date),
+    value: Number.isFinite(entry[key]) ? entry[key] : null,
+    color: Number.isFinite(entry[key]) ? color : "rgba(232, 209, 197, 0.55)"
+  }));
+
+  drawBarChart(document.getElementById("stepsChart"), toChartEntries("steps", COLORS.ma7), {
+    yFormatter: formatCompactSteps,
+    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
+    minHeight: 210
+  });
+  drawBarChart(document.getElementById("distanceChart"), toChartEntries("distanceKm", COLORS.raw), {
+    yFormatter: (value) => `${formatDistance(value)} km`,
+    xTickFormatter: (item, index, items) => filterBarAxisLabel(item.shortLabel, index, items.length),
+    minHeight: 210
+  });
 }
 
 function drawLineChart(canvas, datasets, options = {}) {
@@ -1874,7 +1950,7 @@ function renderCandlestickChartToCanvas(context, width, height, data, options) {
 }
 
 function buildContinuousSeries(records) {
-  const byDate = new Map(records.map((record) => [record.isoDate, record.weight]));
+  const byDate = new Map(records.map((record) => [record.isoDate, record]));
   const start = records[0].date;
   const end = records[records.length - 1].date;
   const days = differenceInDays(end, start);
@@ -1883,12 +1959,14 @@ function buildContinuousSeries(records) {
   for (let offset = 0; offset <= days; offset += 1) {
     const date = addDays(start, offset);
     const isoDate = formatISODate(date);
-    const weight = byDate.has(isoDate) ? byDate.get(isoDate) : null;
+    const record = byDate.get(isoDate);
 
     series.push({
       date,
       isoDate,
-      weight: Number.isFinite(weight) ? weight : null
+      weight: Number.isFinite(record?.weight) ? record.weight : null,
+      steps: Number.isFinite(record?.steps) ? record.steps : null,
+      distanceKm: Number.isFinite(record?.distanceKm) ? record.distanceKm : null
     });
   }
 
@@ -2007,12 +2085,24 @@ function roundRect(context, x, y, width, height, radius) {
 }
 
 function buildHeatmapTooltip(entry) {
-  if (!Number.isFinite(entry.weight)) {
-    return `${formatDate(entry.date)}\nAucune mesure`;
+  const lines = [formatDate(entry.date)];
+
+  if (Number.isFinite(entry.weight)) {
+    const diffLabel = Number.isFinite(entry.diff) ? `${formatSignedWeight(entry.diff)} kg` : "N/A";
+    lines.push(`${formatWeight(entry.weight)} kg`, `Diff. : ${diffLabel}`);
+  } else {
+    lines.push("Aucune pesée");
   }
 
-  const diffLabel = Number.isFinite(entry.diff) ? `${formatSignedWeight(entry.diff)} kg` : "N/A";
-  return `${formatDate(entry.date)}\n${formatWeight(entry.weight)} kg\nDiff: ${diffLabel}`;
+  if (Number.isFinite(entry.steps)) {
+    lines.push(`Pas : ${formatSteps(entry.steps)}`);
+  }
+
+  if (Number.isFinite(entry.distanceKm)) {
+    lines.push(`Distance : ${formatDistance(entry.distanceKm)} km`);
+  }
+
+  return lines.join("\n");
 }
 
 function getHeatmapMonthLabel(weekStart, previousMonthKey, firstDate) {
@@ -2073,6 +2163,27 @@ function formatPercentage(value) {
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 0,
     maximumFractionDigits: 1
+  }).format(value);
+}
+
+function formatSteps(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    maximumFractionDigits: 0
+  }).format(value);
+}
+
+function formatCompactSteps(value) {
+  if (Math.abs(value) >= 1000) {
+    return `${new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 1 }).format(value / 1000)} k`;
+  }
+
+  return formatSteps(value);
+}
+
+function formatDistance(value) {
+  return new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 2
   }).format(value);
 }
 

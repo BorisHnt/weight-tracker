@@ -219,6 +219,56 @@
       </div>
     </section>
 
+    <section class="container section" aria-labelledby="activity-title">
+      <div class="section-head">
+        <div>
+          <h2 id="activity-title">Activité quotidienne</h2>
+        </div>
+      </div>
+      <div class="activity-stats-grid">
+        <article class="stat-card">
+          <span class="stat-label">Derniers pas</span>
+          <strong class="stat-value" id="latestStepsValue">--</strong>
+          <span class="stat-meta" id="latestStepsMeta">En attente des données.</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Dernière distance</span>
+          <strong class="stat-value" id="latestDistanceValue">--</strong>
+          <span class="stat-meta" id="latestDistanceMeta">En attente des données.</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Moyenne sur 28 jours</span>
+          <strong class="stat-value" id="averageStepsValue">--</strong>
+          <span class="stat-meta" id="averageStepsMeta">Pas par jour renseigné</span>
+        </article>
+        <article class="stat-card">
+          <span class="stat-label">Distance sur 28 jours</span>
+          <strong class="stat-value" id="distance28Value">--</strong>
+          <span class="stat-meta" id="distance28Meta">Jours renseignés</span>
+        </article>
+      </div>
+      <div class="dual-chart-grid activity-charts">
+        <article class="subpanel">
+          <div class="subpanel-head">
+            <h3>Pas</h3>
+            <p>28 derniers jours</p>
+          </div>
+          <div class="canvas-wrap short">
+            <canvas id="stepsChart" aria-label="Nombre de pas sur les 28 derniers jours" role="img"></canvas>
+          </div>
+        </article>
+        <article class="subpanel">
+          <div class="subpanel-head">
+            <h3>Distance</h3>
+            <p>28 derniers jours</p>
+          </div>
+          <div class="canvas-wrap short">
+            <canvas id="distanceChart" aria-label="Distance parcourue sur les 28 derniers jours" role="img"></canvas>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section class="container section" aria-labelledby="heatmap-title">
       <div class="section-head">
         <div>
