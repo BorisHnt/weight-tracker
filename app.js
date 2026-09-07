@@ -568,8 +568,6 @@ function renderActivity(series) {
 function renderActivityStats(series) {
   const latestStepsEntry = [...series].reverse().find((entry) => Number.isFinite(entry.steps));
   const latestDistanceEntry = [...series].reverse().find((entry) => Number.isFinite(entry.distanceKm));
-  const stepEntries = series.filter((entry) => Number.isFinite(entry.steps));
-  const distanceEntries = series.filter((entry) => Number.isFinite(entry.distanceKm));
 
   if (latestStepsEntry) {
     document.getElementById("latestStepsValue").textContent = formatSteps(latestStepsEntry.steps);
@@ -581,41 +579,69 @@ function renderActivityStats(series) {
     document.getElementById("latestDistanceMeta").textContent = formatDate(latestDistanceEntry.date);
   }
 
+}
+
+function setupActivityHistory(series) {
+  const select = document.getElementById("activityRangeSelect");
+  const update = () => {
+    const entries = filterActivityRange(series, select.value);
+    renderActivityPeriodStats(entries, select.value);
+    renderActivityHistoryChart(entries);
+  };
+
+  select.addEventListener("change", update);
+  update();
+}
+
+function renderActivityPeriodStats(entries, rangeKey) {
+  const stepEntries = entries.filter((entry) => Number.isFinite(entry.steps));
+  const distanceEntries = entries.filter((entry) => Number.isFinite(entry.distanceKm));
   const averageSteps = stepEntries.length
     ? stepEntries.reduce((sum, entry) => sum + entry.steps, 0) / stepEntries.length
     : null;
   const totalDistance = distanceEntries.length
     ? distanceEntries.reduce((sum, entry) => sum + entry.distanceKm, 0)
     : null;
+  const rangeLabel = getActivityStatsRangeLabel(rangeKey);
 
+  document.getElementById("averageStepsLabel").textContent = `Moyenne ${rangeLabel}`;
+  document.getElementById("distanceTotalLabel").textContent = `Distance ${rangeLabel}`;
   document.getElementById("averageStepsValue").textContent = Number.isFinite(averageSteps) ? formatSteps(Math.round(averageSteps)) : "--";
-  document.getElementById("averageStepsMeta").textContent = `${stepEntries.length} jours renseignés`;
+  document.getElementById("averageStepsMeta").textContent = `${stepEntries.length} jour${stepEntries.length > 1 ? "s" : ""} renseigné${stepEntries.length > 1 ? "s" : ""}`;
   document.getElementById("distance28Value").textContent = Number.isFinite(totalDistance) ? `${formatDistance(totalDistance)} km` : "--";
-  document.getElementById("distance28Meta").textContent = `${distanceEntries.length} jours renseignés`;
-}
-
-function setupActivityHistory(series) {
-  const select = document.getElementById("activityRangeSelect");
-  const update = () => renderActivityHistoryChart(filterActivityRange(series, select.value));
-
-  select.addEventListener("change", update);
-  update();
+  document.getElementById("distance28Meta").textContent = `${distanceEntries.length} jour${distanceEntries.length > 1 ? "s" : ""} renseigné${distanceEntries.length > 1 ? "s" : ""}`;
 }
 
 function renderActivityHistoryChart(entries) {
   const labels = entries.map((entry) => entry.isoDate);
   const xTickFormatter = (label, index, allLabels) => filterLineAxisLabel(label, index, allLabels);
+  const maximumDistance = Math.max(0, ...entries.map((entry) => entry.distanceKm).filter(Number.isFinite));
+  const roundedDistanceMaximum = Math.max(4, Math.ceil(maximumDistance / 4) * 4);
 
-  drawLineChart(document.getElementById("stepsChart"), [{
-    label: "Pas",
-    values: entries.map((entry) => entry.steps),
-    color: COLORS.ma7,
-    lineWidth: 1.8,
-    connectGaps: false
-  }], {
+  drawLineChart(document.getElementById("stepsChart"), [
+    {
+      label: "Pas",
+      values: entries.map((entry) => entry.steps),
+      color: COLORS.ma7,
+      lineWidth: 1.8,
+      connectGaps: false
+    },
+    {
+      label: "Objectif",
+      values: entries.map(() => OBJECTIF_PAS),
+      color: COLORS.ma28,
+      lineWidth: 1.4,
+      dash: [6, 5],
+      connectGaps: true
+    }
+  ], {
     labels,
     yFormatter: formatCompactSteps,
     xTickFormatter,
+    startAtZero: true,
+    paddingLeft: 62,
+    paddingRight: 28,
+    xInset: 10,
     minHeight: 140
   });
 
@@ -627,8 +653,13 @@ function renderActivityHistoryChart(entries) {
     connectGaps: false
   }], {
     labels: entries.map((entry) => entry.isoDate),
-    yFormatter: (value) => `${formatDistance(value)} km`,
+    yFormatter: (value) => `${Math.round(value)} km`,
     xTickFormatter,
+    startAtZero: true,
+    axisMaximum: roundedDistanceMaximum,
+    paddingLeft: 68,
+    paddingRight: 28,
+    xInset: 10,
     minHeight: 140
   });
 }
@@ -755,7 +786,9 @@ function renderStrideChart(entries) {
     labels: entries.map((entry) => entry.isoDate),
     yFormatter: (value) => `${formatCentimeters(value)} cm`,
     xTickFormatter: (label, index, labels) => filterLineAxisLabel(label, index, labels),
-    xInset: 12,
+    paddingLeft: 72,
+    paddingRight: 30,
+    xInset: 16,
     minHeight: 210
   });
 }
@@ -769,6 +802,17 @@ function filterActivityRange(series, rangeKey) {
 
   const cutoff = addDays(series.at(-1).date, -(days - 1));
   return series.filter((entry) => entry.date >= cutoff);
+}
+
+function getActivityStatsRangeLabel(rangeKey) {
+  return {
+    all: "depuis le début",
+    "1y": "sur la dernière année",
+    "6m": "sur 6 mois",
+    "3m": "sur 3 mois",
+    "28d": "sur 28 jours",
+    "7d": "sur 7 jours"
+  }[rangeKey] || "sur la période";
 }
 
 function drawLineChart(canvas, datasets, options = {}) {
@@ -1758,7 +1802,12 @@ function renderCanvasChart(canvas) {
 }
 
 function renderLineChartToCanvas(context, width, height, datasets, options) {
-  const padding = { top: 18, right: 10, bottom: 34, left: 50 };
+  const padding = {
+    top: 18,
+    right: options.paddingRight || 10,
+    bottom: 34,
+    left: options.paddingLeft || 50
+  };
   const plotWidth = Math.max(10, width - padding.left - padding.right);
   const plotHeight = Math.max(10, height - padding.top - padding.bottom);
   const flatValues = datasets.flatMap((dataset) => dataset.values.filter(Number.isFinite));
@@ -1771,14 +1820,17 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
   let minValue = Math.min(...flatValues);
   let maxValue = Math.max(...flatValues);
 
-  if (minValue === maxValue) {
+  if (options.startAtZero) {
+    minValue = 0;
+    maxValue = Number.isFinite(options.axisMaximum) ? Math.max(options.axisMaximum, maxValue) : Math.max(1, maxValue * 1.08);
+  } else if (minValue === maxValue) {
     minValue -= 1;
     maxValue += 1;
+  } else {
+    const range = maxValue - minValue;
+    minValue -= range * 0.08;
+    maxValue += range * 0.08;
   }
-
-  const range = maxValue - minValue;
-  minValue -= range * 0.08;
-  maxValue += range * 0.08;
 
   const maxLength = Math.max(...datasets.map((dataset) => dataset.values.length), 0);
   const xInset = Math.max(0, Math.min(options.xInset || 0, plotWidth / 4));

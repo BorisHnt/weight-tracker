@@ -249,12 +249,12 @@
           <span class="stat-meta" id="latestDistanceMeta">En attente des données.</span>
         </article>
         <article class="stat-card">
-          <span class="stat-label">Moyenne depuis le début</span>
+          <span class="stat-label" id="averageStepsLabel">Moyenne depuis le début</span>
           <strong class="stat-value" id="averageStepsValue">--</strong>
           <span class="stat-meta" id="averageStepsMeta">Pas par jour renseigné</span>
         </article>
         <article class="stat-card">
-          <span class="stat-label">Distance depuis le début</span>
+          <span class="stat-label" id="distanceTotalLabel">Distance depuis le début</span>
           <strong class="stat-value" id="distance28Value">--</strong>
           <span class="stat-meta" id="distance28Meta">Jours renseignés</span>
         </article>
@@ -263,6 +263,7 @@
         <article class="subpanel">
           <div class="subpanel-head">
             <h3>Pas</h3>
+            <span class="legend-item"><i class="swatch swatch-ma28"></i>Objectif : 8 000</span>
           </div>
           <div class="canvas-wrap activity-compact">
             <canvas id="stepsChart" aria-label="Évolution du nombre de pas" role="img"></canvas>
