@@ -470,9 +470,13 @@ canvas {
   font-size: 0.78rem;
 }
 
-.activity-history-panel {
-  display: grid;
-  gap: 12px;
+.canvas-wrap.activity-compact {
+  height: 140px;
+  min-height: 140px;
+}
+
+.dual-chart-grid.activity-charts-stack {
+  grid-template-columns: 1fr;
 }
 
 .projection-grid {

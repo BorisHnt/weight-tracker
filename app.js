@@ -561,10 +561,8 @@ function renderCurrentContext(series, latestEntry) {
 function renderActivity(series) {
   renderActivityStats(series);
   setupActivityHistory(series);
-  renderLagEffect(series);
   renderStepsGoalHeatmap(series);
   setupStrideChart(series);
-  renderStepsWeightChart(series);
 }
 
 function renderActivityStats(series) {
@@ -605,71 +603,33 @@ function setupActivityHistory(series) {
 }
 
 function renderActivityHistoryChart(entries) {
-  drawDualLineChart(document.getElementById("activityHistoryChart"), [
-    {
-      axis: "left",
-      values: entries.map((entry) => entry.steps),
-      color: COLORS.ma7,
-      lineWidth: 2.2,
-      connectGaps: false
-    },
-    {
-      axis: "right",
-      values: entries.map((entry) => entry.distanceKm),
-      color: COLORS.raw,
-      lineWidth: 1.5,
-      dash: [5, 4],
-      connectGaps: false
-    }
-  ], {
+  const labels = entries.map((entry) => entry.isoDate);
+  const xTickFormatter = (label, index, allLabels) => filterLineAxisLabel(label, index, allLabels);
+
+  drawLineChart(document.getElementById("stepsChart"), [{
+    label: "Pas",
+    values: entries.map((entry) => entry.steps),
+    color: COLORS.ma7,
+    lineWidth: 1.8,
+    connectGaps: false
+  }], {
+    labels,
+    yFormatter: formatCompactSteps,
+    xTickFormatter,
+    minHeight: 140
+  });
+
+  drawLineChart(document.getElementById("distanceChart"), [{
+    label: "Distance",
+    values: entries.map((entry) => entry.distanceKm),
+    color: COLORS.raw,
+    lineWidth: 1.8,
+    connectGaps: false
+  }], {
     labels: entries.map((entry) => entry.isoDate),
-    leftFormatter: formatCompactSteps,
-    rightFormatter: (value) => `${formatDistance(value)} km`,
-    leftStartAtZero: true,
-    rightStartAtZero: true,
-    minHeight: 280
-  });
-}
-
-function renderLagEffect(series) {
-  const correlations = Array.from({ length: 7 }, (_, index) => {
-    const lag = index + 1;
-    const pairs = [];
-
-    for (let cursor = 0; cursor + lag < series.length; cursor += 1) {
-      const current = series[cursor];
-      const future = series[cursor + lag];
-
-      if (Number.isFinite(current.steps) && Number.isFinite(current.weight) && Number.isFinite(future.weight)) {
-        pairs.push({ x: current.steps, y: future.weight - current.weight });
-      }
-    }
-
-    return {
-      lag,
-      correlation: pearsonCorrelation(pairs),
-      count: pairs.length
-    };
-  });
-  const valid = correlations.filter((entry) => Number.isFinite(entry.correlation));
-  const best = valid.reduce((selected, entry) => (
-    !selected || Math.abs(entry.correlation) > Math.abs(selected.correlation) ? entry : selected
-  ), null);
-
-  document.getElementById("lagBestValue").textContent = best ? `J+${best.lag} · r = ${formatCorrelation(best.correlation)}` : "--";
-  document.getElementById("lagEffectDetail").textContent = best
-    ? `${best.count} journées comparées. ${describeCorrelation(best.correlation)} Corrélation statistique, sans preuve de causalité.`
-    : "Données insuffisantes pour calculer une corrélation.";
-
-  drawBarChart(document.getElementById("lagEffectChart"), correlations.map((entry) => ({
-    label: `J+${entry.lag}`,
-    shortLabel: `J+${entry.lag}`,
-    value: entry.correlation,
-    color: entry.correlation <= 0 ? COLORS.ma7 : COLORS.ma28
-  })), {
-    yFormatter: formatCorrelation,
-    xTickFormatter: (item) => item.shortLabel,
-    minHeight: 210
+    yFormatter: (value) => `${formatDistance(value)} km`,
+    xTickFormatter,
+    minHeight: 140
   });
 }
 
@@ -795,31 +755,8 @@ function renderStrideChart(entries) {
     labels: entries.map((entry) => entry.isoDate),
     yFormatter: (value) => `${formatCentimeters(value)} cm`,
     xTickFormatter: (label, index, labels) => filterLineAxisLabel(label, index, labels),
+    xInset: 12,
     minHeight: 210
-  });
-}
-
-function renderStepsWeightChart(series) {
-  drawDualLineChart(document.getElementById("stepsWeightChart"), [
-    {
-      axis: "left",
-      values: series.map((entry) => entry.steps),
-      color: COLORS.ma7,
-      connectGaps: false
-    },
-    {
-      axis: "right",
-      values: series.map((entry) => entry.weight),
-      color: COLORS.ma28,
-      connectGaps: false
-    }
-  ], {
-    labels: series.map((entry) => entry.isoDate),
-    leftFormatter: formatCompactSteps,
-    rightFormatter: (value) => `${formatWeight(value)} kg`,
-    leftStartAtZero: true,
-    rightStartAtZero: false,
-    minHeight: 280
   });
 }
 
@@ -834,44 +771,8 @@ function filterActivityRange(series, rangeKey) {
   return series.filter((entry) => entry.date >= cutoff);
 }
 
-function pearsonCorrelation(pairs) {
-  if (pairs.length < 3) {
-    return null;
-  }
-
-  const meanX = pairs.reduce((sum, pair) => sum + pair.x, 0) / pairs.length;
-  const meanY = pairs.reduce((sum, pair) => sum + pair.y, 0) / pairs.length;
-  let numerator = 0;
-  let sumSquareX = 0;
-  let sumSquareY = 0;
-
-  pairs.forEach((pair) => {
-    const deviationX = pair.x - meanX;
-    const deviationY = pair.y - meanY;
-    numerator += deviationX * deviationY;
-    sumSquareX += deviationX ** 2;
-    sumSquareY += deviationY ** 2;
-  });
-
-  const denominator = Math.sqrt(sumSquareX * sumSquareY);
-  return denominator ? numerator / denominator : null;
-}
-
-function describeCorrelation(value) {
-  const strength = Math.abs(value) < 0.15 ? "Association très faible." : Math.abs(value) < 0.35 ? "Association faible." : Math.abs(value) < 0.6 ? "Association modérée." : "Association marquée.";
-  const direction = value < 0 ? "Davantage de pas est associé à une baisse du poids." : "Davantage de pas est associé à une hausse du poids.";
-  return `${strength} ${direction}`;
-}
-
 function drawLineChart(canvas, datasets, options = {}) {
   canvas.__chartType = "line";
-  canvas.__chartData = { datasets, options };
-  setupCanvasRedraw(canvas);
-  renderCanvasChart(canvas);
-}
-
-function drawDualLineChart(canvas, datasets, options = {}) {
-  canvas.__chartType = "dualLine";
   canvas.__chartData = { datasets, options };
   setupCanvasRedraw(canvas);
   renderCanvasChart(canvas);
@@ -1843,11 +1744,6 @@ function renderCanvasChart(canvas) {
   context.setTransform(dpr, 0, 0, dpr, 0, 0);
   context.clearRect(0, 0, cssWidth, cssHeight);
 
-  if (chartType === "dualLine") {
-    renderDualLineChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.datasets, canvas.__chartData.options);
-    return;
-  }
-
   if (chartType === "line") {
     renderLineChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.datasets, canvas.__chartData.options);
     return;
@@ -1859,118 +1755,6 @@ function renderCanvasChart(canvas) {
   }
 
   renderBarChartToCanvas(context, cssWidth, cssHeight, canvas.__chartData.data, canvas.__chartData.options);
-}
-
-function renderDualLineChartToCanvas(context, width, height, datasets, options) {
-  const padding = { top: 18, right: 62, bottom: 34, left: 62 };
-  const plotWidth = Math.max(10, width - padding.left - padding.right);
-  const plotHeight = Math.max(10, height - padding.top - padding.bottom);
-  const leftValues = datasets.filter((dataset) => dataset.axis === "left").flatMap((dataset) => dataset.values.filter(Number.isFinite));
-  const rightValues = datasets.filter((dataset) => dataset.axis === "right").flatMap((dataset) => dataset.values.filter(Number.isFinite));
-
-  if (!leftValues.length && !rightValues.length) {
-    drawEmptyState(context, width, height, "Données insuffisantes");
-    return;
-  }
-
-  const getRange = (values, startAtZero) => {
-    if (!values.length) {
-      return { min: 0, max: 1 };
-    }
-
-    let min = startAtZero ? 0 : Math.min(...values);
-    let max = Math.max(...values);
-
-    if (min === max) {
-      min = startAtZero ? 0 : min - 1;
-      max += 1;
-    } else if (!startAtZero) {
-      const paddingValue = (max - min) * 0.08;
-      min -= paddingValue;
-      max += paddingValue;
-    } else {
-      max *= 1.08;
-    }
-
-    return { min, max };
-  };
-  const leftRange = getRange(leftValues, options.leftStartAtZero);
-  const rightRange = getRange(rightValues, options.rightStartAtZero);
-  const maxLength = Math.max(...datasets.map((dataset) => dataset.values.length), 1);
-  const xForIndex = (index) => padding.left + (maxLength <= 1 ? plotWidth / 2 : (index / (maxLength - 1)) * plotWidth);
-  const yForValue = (value, range) => padding.top + plotHeight - ((value - range.min) / (range.max - range.min)) * plotHeight;
-
-  context.strokeStyle = COLORS.axis;
-  context.lineWidth = 1;
-  context.beginPath();
-  context.moveTo(padding.left, padding.top);
-  context.lineTo(padding.left, padding.top + plotHeight);
-  context.lineTo(padding.left + plotWidth, padding.top + plotHeight);
-  context.lineTo(padding.left + plotWidth, padding.top);
-  context.stroke();
-
-  const ticks = 4;
-  context.font = "11px Avenir Next, Segoe UI, sans-serif";
-  context.textBaseline = "middle";
-
-  for (let tick = 0; tick <= ticks; tick += 1) {
-    const ratio = tick / ticks;
-    const y = padding.top + plotHeight - ratio * plotHeight;
-    const leftValue = leftRange.min + ratio * (leftRange.max - leftRange.min);
-    const rightValue = rightRange.min + ratio * (rightRange.max - rightRange.min);
-    context.strokeStyle = COLORS.grid;
-    context.beginPath();
-    context.moveTo(padding.left, y);
-    context.lineTo(padding.left + plotWidth, y);
-    context.stroke();
-    context.fillStyle = COLORS.muted;
-    context.textAlign = "right";
-    context.fillText(options.leftFormatter ? options.leftFormatter(leftValue) : String(leftValue), padding.left - 8, y);
-    context.textAlign = "left";
-    context.fillText(options.rightFormatter ? options.rightFormatter(rightValue) : String(rightValue), padding.left + plotWidth + 8, y);
-  }
-
-  const labels = options.labels || [];
-  const tickStep = Math.max(1, Math.ceil(labels.length / 5));
-  context.textAlign = "center";
-  context.textBaseline = "top";
-  labels.forEach((label, index) => {
-    if (index % tickStep !== 0 && index !== labels.length - 1) {
-      return;
-    }
-
-    context.fillStyle = COLORS.muted;
-    context.fillText(formatAxisDate(label), xForIndex(index), padding.top + plotHeight + 10);
-  });
-
-  datasets.forEach((dataset) => {
-    const range = dataset.axis === "right" ? rightRange : leftRange;
-    const points = dataset.values.map((value, index) => (
-      Number.isFinite(value) ? { x: xForIndex(index), y: yForValue(value, range) } : null
-    ));
-    const segments = dataset.connectGaps === false ? splitContinuousPoints(points) : [points.filter(Boolean)];
-    context.save();
-    context.strokeStyle = dataset.color || COLORS.text;
-    context.lineWidth = dataset.lineWidth || 1.8;
-    context.lineJoin = "round";
-    context.lineCap = "round";
-
-    if (dataset.dash) {
-      context.setLineDash(dataset.dash);
-    }
-
-    segments.forEach((segment) => {
-      if (!segment.length) {
-        return;
-      }
-
-      context.beginPath();
-      context.moveTo(segment[0].x, segment[0].y);
-      segment.slice(1).forEach((point) => context.lineTo(point.x, point.y));
-      context.stroke();
-    });
-    context.restore();
-  });
 }
 
 function renderLineChartToCanvas(context, width, height, datasets, options) {
@@ -1997,8 +1781,10 @@ function renderLineChartToCanvas(context, width, height, datasets, options) {
   maxValue += range * 0.08;
 
   const maxLength = Math.max(...datasets.map((dataset) => dataset.values.length), 0);
+  const xInset = Math.max(0, Math.min(options.xInset || 0, plotWidth / 4));
+  const insetPlotWidth = Math.max(1, plotWidth - xInset * 2);
   const yForValue = (value) => padding.top + plotHeight - ((value - minValue) / (maxValue - minValue)) * plotHeight;
-  const xForIndex = (index) => padding.left + (maxLength <= 1 ? plotWidth / 2 : (index / (maxLength - 1)) * plotWidth);
+  const xForIndex = (index) => padding.left + xInset + (maxLength <= 1 ? insetPlotWidth / 2 : (index / (maxLength - 1)) * insetPlotWidth);
 
   context.strokeStyle = COLORS.axis;
   context.lineWidth = 1;
@@ -2576,17 +2362,6 @@ function formatCentimeters(value) {
   return new Intl.NumberFormat("fr-FR", {
     minimumFractionDigits: 1,
     maximumFractionDigits: 1
-  }).format(value);
-}
-
-function formatCorrelation(value) {
-  if (!Number.isFinite(value)) {
-    return "--";
-  }
-
-  return new Intl.NumberFormat("fr-FR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2
   }).format(value);
 }
 
