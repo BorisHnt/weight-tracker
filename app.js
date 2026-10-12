@@ -120,8 +120,20 @@ async function init() {
     setupProjectionControls(enrichedSeries, goalAchievement);
     renderActivity(enrichedSeries);
     renderHeatmap(enrichedSeries);
-    renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend");
-    renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend");
+    renderAggregateHeatmap(weeklyPeriods, "weeklyHeatmapGrid", "weeklyHeatmapLegend", {
+      label: "weightWeekSummaryLabel",
+      start: "weightWeekStart",
+      end: "weightWeekEnd",
+      change: "weightWeekChange",
+      average: "weightWeekAverage"
+    });
+    renderAggregateHeatmap(monthlyPeriods, "monthlyHeatmapGrid", "monthlyHeatmapLegend", {
+      label: "weightMonthSummaryLabel",
+      start: "weightMonthStart",
+      end: "weightMonthEnd",
+      change: "weightMonthChange",
+      average: "weightMonthAverage"
+    });
     renderMonthlyAnalysis(enrichedSeries, monthlyPeriods);
 
     const weightCount = records.filter((entry) => Number.isFinite(entry.weight)).length;
@@ -1290,11 +1302,12 @@ function finalizePeriod(period) {
     endWeight: lastEntry.weight,
     minWeight: Math.min(...weights),
     maxWeight: Math.max(...weights),
+    averageWeight: weights.reduce((sum, weight) => sum + weight, 0) / weights.length,
     change: sanitizeNumber(lastEntry.weight - firstEntry.weight)
   };
 }
 
-function renderAggregateHeatmap(periods, gridId, legendId) {
+function renderAggregateHeatmap(periods, gridId, legendId, summaryIds) {
   const grid = document.getElementById(gridId);
   const legend = document.getElementById(legendId);
   const tooltip = document.getElementById("tooltip");
@@ -1318,10 +1331,13 @@ function renderAggregateHeatmap(periods, gridId, legendId) {
     cell.type = "button";
     cell.className = "aggregate-heatmap-cell";
     cell.textContent = period.label;
+    cell.setAttribute("aria-pressed", "false");
     if (period.isMissing) {
       cell.classList.add("is-missing");
+      cell.disabled = true;
     } else {
       cell.style.backgroundColor = HEATMAP_COLORS[getHeatmapColorIndex(period.change, maxLoss, maxGain)];
+      cell.addEventListener("click", () => selectWeightPeriod(period, cell, grid, summaryIds));
     }
     cell.dataset.tooltip = tooltipText;
     cell.setAttribute("aria-label", tooltipText.replace(/\n/g, ", "));
@@ -1330,6 +1346,21 @@ function renderAggregateHeatmap(periods, gridId, legendId) {
   });
 
   renderHeatmapLegend(legend);
+}
+
+function selectWeightPeriod(period, selectedCell, grid, summaryIds) {
+  grid.querySelectorAll(".aggregate-heatmap-cell").forEach((cell) => {
+    const isSelected = cell === selectedCell;
+    cell.classList.toggle("is-selected", isSelected);
+    cell.setAttribute("aria-pressed", String(isSelected));
+  });
+
+  const measureCount = period.entries.length;
+  document.getElementById(summaryIds.label).textContent = `${period.fullLabel} · ${measureCount} pesée${measureCount > 1 ? "s" : ""}`;
+  document.getElementById(summaryIds.start).textContent = `${formatWeight(period.startWeight)} kg`;
+  document.getElementById(summaryIds.end).textContent = `${formatWeight(period.endWeight)} kg`;
+  document.getElementById(summaryIds.change).textContent = `${formatSignedWeight(period.change)} kg`;
+  document.getElementById(summaryIds.average).textContent = `${formatWeight(period.averageWeight)} kg`;
 }
 
 function bindTooltip(element, tooltip) {
