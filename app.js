@@ -563,6 +563,7 @@ function renderActivity(series) {
   setupActivityHistory(series);
   renderStepsGoalHeatmap(series);
   renderStepsWeeklyHeatmap(series);
+  renderStepsMonthlyHeatmap(series);
   setupStrideChart(series);
 }
 
@@ -871,6 +872,106 @@ function renderStepsWeeklyLegend(container) {
   const goalLabel = document.createElement("span");
   goalLabel.textContent = `${formatSteps(OBJECTIF_PAS)}+ / jour`;
   container.appendChild(goalLabel);
+}
+
+function renderStepsMonthlyHeatmap(series) {
+  const grid = document.getElementById("stepsMonthlyHeatmapGrid");
+  const legend = document.getElementById("stepsMonthlyHeatmapLegend");
+  const tooltip = document.getElementById("tooltip");
+  const periods = buildStepsMonthlyPeriods(series);
+
+  grid.replaceChildren();
+  legend.replaceChildren();
+
+  periods.forEach((period) => {
+    const cell = document.createElement("button");
+    const tooltipText = period.isMissing
+      ? `${period.fullLabel}\nAucune donnée de pas`
+      : `${period.fullLabel}\nTotal : ${formatSteps(period.totalSteps)} pas\nMoyenne : ${formatSteps(Math.round(period.averageSteps))} pas / jour\n${period.dayCount} jour${period.dayCount > 1 ? "s" : ""} renseigné${period.dayCount > 1 ? "s" : ""}`;
+
+    cell.type = "button";
+    cell.className = "aggregate-heatmap-cell";
+    cell.textContent = period.label;
+    cell.setAttribute("aria-pressed", "false");
+
+    if (period.isMissing) {
+      cell.classList.add("is-missing");
+      cell.disabled = true;
+    } else {
+      cell.style.backgroundColor = getStepsAverageColor(period.averageSteps);
+      cell.addEventListener("click", () => selectStepsMonth(period, cell, grid));
+    }
+
+    cell.dataset.tooltip = tooltipText;
+    cell.setAttribute("aria-label", tooltipText.replace(/\n/g, ", "));
+    bindTooltip(cell, tooltip);
+    grid.appendChild(cell);
+  });
+
+  renderStepsWeeklyLegend(legend);
+}
+
+function buildStepsMonthlyPeriods(series) {
+  const measuredEntries = series.filter((entry) => Number.isFinite(entry.steps));
+
+  if (!measuredEntries.length) {
+    return [];
+  }
+
+  const buckets = new Map();
+  measuredEntries.forEach((entry) => {
+    const key = `${entry.date.getUTCFullYear()}-${String(entry.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    const entries = buckets.get(key) || [];
+    entries.push(entry);
+    buckets.set(key, entries);
+  });
+
+  const periods = [];
+  const firstMonth = new Date(Date.UTC(measuredEntries[0].date.getUTCFullYear(), measuredEntries[0].date.getUTCMonth(), 1));
+  const lastEntry = measuredEntries.at(-1);
+  const lastMonth = new Date(Date.UTC(lastEntry.date.getUTCFullYear(), lastEntry.date.getUTCMonth(), 1));
+
+  for (
+    let monthStart = firstMonth;
+    monthStart <= lastMonth;
+    monthStart = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 1))
+  ) {
+    const key = `${monthStart.getUTCFullYear()}-${String(monthStart.getUTCMonth() + 1).padStart(2, "0")}`;
+    const entries = buckets.get(key) || [];
+    const totalSteps = entries.reduce((sum, entry) => sum + entry.steps, 0);
+
+    periods.push({
+      key,
+      label: new Intl.DateTimeFormat("fr-FR", {
+        month: "short",
+        year: "2-digit",
+        timeZone: "UTC"
+      }).format(monthStart),
+      fullLabel: new Intl.DateTimeFormat("fr-FR", {
+        month: "long",
+        year: "numeric",
+        timeZone: "UTC"
+      }).format(monthStart),
+      totalSteps: entries.length ? totalSteps : null,
+      averageSteps: entries.length ? totalSteps / entries.length : null,
+      dayCount: entries.length,
+      isMissing: !entries.length
+    });
+  }
+
+  return periods;
+}
+
+function selectStepsMonth(period, selectedCell, grid) {
+  grid.querySelectorAll(".aggregate-heatmap-cell").forEach((cell) => {
+    const isSelected = cell === selectedCell;
+    cell.classList.toggle("is-selected", isSelected);
+    cell.setAttribute("aria-pressed", String(isSelected));
+  });
+
+  document.getElementById("stepsMonthSummaryLabel").textContent = `${period.fullLabel} · ${period.dayCount} jour${period.dayCount > 1 ? "s" : ""} renseigné${period.dayCount > 1 ? "s" : ""}`;
+  document.getElementById("stepsMonthTotal").textContent = `${formatSteps(period.totalSteps)} pas`;
+  document.getElementById("stepsMonthAverage").textContent = `${formatSteps(Math.round(period.averageSteps))} pas`;
 }
 
 function setupStrideChart(series) {

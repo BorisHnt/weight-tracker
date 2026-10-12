@@ -284,7 +284,7 @@
       <div class="section-head">
         <div>
           <h2 id="steps-heatmap-title">Heatmaps - Objectif de 8 000 pas</h2>
-          <p class="projection-detail">Une vue quotidienne de la progression vers l'objectif.</p>
+          <p class="projection-detail">Des vues quotidienne, hebdomadaire et mensuelle de la progression vers l'objectif.</p>
         </div>
       </div>
       <article class="heatmap-panel">
@@ -318,6 +318,28 @@
             <div>
               <dt>Moyenne quotidienne</dt>
               <dd id="stepsWeekAverage">--</dd>
+            </div>
+          </dl>
+        </div>
+      </article>
+      <article class="heatmap-panel">
+        <h3>Mensuelle</h3>
+        <div class="heatmap-frame">
+          <div class="aggregate-heatmap-scroll">
+            <div class="aggregate-heatmap-grid monthly-heatmap-grid" id="stepsMonthlyHeatmapGrid"></div>
+          </div>
+          <div class="heatmap-legend" id="stepsMonthlyHeatmapLegend" aria-hidden="true"></div>
+        </div>
+        <div class="steps-week-summary" id="stepsMonthSummary" aria-live="polite">
+          <p class="steps-week-summary-label" id="stepsMonthSummaryLabel">Sélectionne un mois pour afficher son bilan.</p>
+          <dl class="steps-week-summary-values">
+            <div>
+              <dt>Total</dt>
+              <dd id="stepsMonthTotal">--</dd>
+            </div>
+            <div>
+              <dt>Moyenne quotidienne</dt>
+              <dd id="stepsMonthAverage">--</dd>
             </div>
           </dl>
         </div>
