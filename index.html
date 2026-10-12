@@ -283,11 +283,12 @@
     <section class="container section" aria-labelledby="steps-heatmap-title">
       <div class="section-head">
         <div>
-          <h2 id="steps-heatmap-title">Objectif de 8 000 pas</h2>
+          <h2 id="steps-heatmap-title">Heatmaps - Objectif de 8 000 pas</h2>
           <p class="projection-detail">Une vue quotidienne de la progression vers l'objectif.</p>
         </div>
       </div>
       <article class="heatmap-panel">
+        <h3>Quotidienne</h3>
         <div class="heatmap-frame">
           <div class="heatmap-shell">
             <div class="heatmap-y-axis" id="stepsHeatmapYAxis" aria-hidden="true"></div>
@@ -297,6 +298,28 @@
             </div>
           </div>
           <div class="heatmap-legend" id="stepsHeatmapLegend" aria-hidden="true"></div>
+        </div>
+      </article>
+      <article class="heatmap-panel">
+        <h3>Hebdomadaire</h3>
+        <div class="heatmap-frame">
+          <div class="aggregate-heatmap-scroll">
+            <div class="aggregate-heatmap-grid weekly-heatmap-grid" id="stepsWeeklyHeatmapGrid"></div>
+          </div>
+          <div class="heatmap-legend" id="stepsWeeklyHeatmapLegend" aria-hidden="true"></div>
+        </div>
+        <div class="steps-week-summary" id="stepsWeekSummary" aria-live="polite">
+          <p class="steps-week-summary-label" id="stepsWeekSummaryLabel">Sélectionne une semaine pour afficher son bilan.</p>
+          <dl class="steps-week-summary-values">
+            <div>
+              <dt>Total</dt>
+              <dd id="stepsWeekTotal">--</dd>
+            </div>
+            <div>
+              <dt>Moyenne quotidienne</dt>
+              <dd id="stepsWeekAverage">--</dd>
+            </div>
+          </dl>
         </div>
       </article>
     </section>
@@ -334,7 +357,7 @@
     <section class="container section" aria-labelledby="heatmap-title">
       <div class="section-head">
         <div>
-          <h2 id="heatmap-title">Heatmaps</h2>
+          <h2 id="heatmap-title">Heatmaps - Suivi du poids</h2>
         </div>
       </div>
       <div class="heatmaps-stack">

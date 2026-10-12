@@ -562,6 +562,7 @@ function renderActivity(series) {
   renderActivityStats(series);
   setupActivityHistory(series);
   renderStepsGoalHeatmap(series);
+  renderStepsWeeklyHeatmap(series);
   setupStrideChart(series);
 }
 
@@ -750,6 +751,126 @@ function renderStepsGoalHeatmap(series) {
   const goalLabel = document.createElement("span");
   goalLabel.textContent = `${formatSteps(OBJECTIF_PAS)}+`;
   legend.appendChild(goalLabel);
+}
+
+function renderStepsWeeklyHeatmap(series) {
+  const grid = document.getElementById("stepsWeeklyHeatmapGrid");
+  const legend = document.getElementById("stepsWeeklyHeatmapLegend");
+  const tooltip = document.getElementById("tooltip");
+  const periods = buildStepsWeeklyPeriods(series);
+
+  grid.replaceChildren();
+  legend.replaceChildren();
+
+  periods.forEach((period) => {
+    const cell = document.createElement("button");
+    const tooltipText = period.isMissing
+      ? `${period.fullLabel}\nAucune donnée de pas`
+      : `${period.fullLabel}\nTotal : ${formatSteps(period.totalSteps)} pas\nMoyenne : ${formatSteps(Math.round(period.averageSteps))} pas / jour\n${period.dayCount} jour${period.dayCount > 1 ? "s" : ""} renseigné${period.dayCount > 1 ? "s" : ""}`;
+
+    cell.type = "button";
+    cell.className = "aggregate-heatmap-cell";
+    cell.textContent = period.label;
+    cell.setAttribute("aria-pressed", "false");
+
+    if (period.isMissing) {
+      cell.classList.add("is-missing");
+      cell.disabled = true;
+    } else {
+      cell.style.backgroundColor = getStepsAverageColor(period.averageSteps);
+      cell.addEventListener("click", () => selectStepsWeek(period, cell, grid));
+    }
+
+    cell.dataset.tooltip = tooltipText;
+    cell.setAttribute("aria-label", tooltipText.replace(/\n/g, ", "));
+    bindTooltip(cell, tooltip);
+    grid.appendChild(cell);
+  });
+
+  renderStepsWeeklyLegend(legend);
+}
+
+function buildStepsWeeklyPeriods(series) {
+  const measuredEntries = series.filter((entry) => Number.isFinite(entry.steps));
+
+  if (!measuredEntries.length) {
+    return [];
+  }
+
+  const buckets = new Map();
+  measuredEntries.forEach((entry) => {
+    const weekStart = startOfISOWeek(entry.date);
+    const key = formatISODate(weekStart);
+    const entries = buckets.get(key) || [];
+    entries.push(entry);
+    buckets.set(key, entries);
+  });
+
+  const periods = [];
+  const firstWeek = startOfISOWeek(measuredEntries[0].date);
+  const lastWeek = startOfISOWeek(measuredEntries.at(-1).date);
+
+  for (let weekStart = firstWeek; weekStart <= lastWeek; weekStart = addDays(weekStart, 7)) {
+    const key = formatISODate(weekStart);
+    const entries = buckets.get(key) || [];
+    const totalSteps = entries.reduce((sum, entry) => sum + entry.steps, 0);
+    const labels = getWeeklyPeriodLabels(weekStart);
+
+    periods.push({
+      key,
+      ...labels,
+      totalSteps: entries.length ? totalSteps : null,
+      averageSteps: entries.length ? totalSteps / entries.length : null,
+      dayCount: entries.length,
+      isMissing: !entries.length
+    });
+  }
+
+  return periods;
+}
+
+function getStepsAverageColor(averageSteps) {
+  if (!Number.isFinite(averageSteps)) {
+    return "";
+  }
+
+  const ratio = Math.min(1, Math.max(0, averageSteps / OBJECTIF_PAS));
+  const colorIndex = ratio >= 1
+    ? STEPS_HEATMAP_COLORS.length - 1
+    : Math.floor(ratio * (STEPS_HEATMAP_COLORS.length - 1));
+
+  return STEPS_HEATMAP_COLORS[colorIndex];
+}
+
+function selectStepsWeek(period, selectedCell, grid) {
+  grid.querySelectorAll(".aggregate-heatmap-cell").forEach((cell) => {
+    const isSelected = cell === selectedCell;
+    cell.classList.toggle("is-selected", isSelected);
+    cell.setAttribute("aria-pressed", String(isSelected));
+  });
+
+  document.getElementById("stepsWeekSummaryLabel").textContent = `${period.fullLabel} · ${period.dayCount} jour${period.dayCount > 1 ? "s" : ""} renseigné${period.dayCount > 1 ? "s" : ""}`;
+  document.getElementById("stepsWeekTotal").textContent = `${formatSteps(period.totalSteps)} pas`;
+  document.getElementById("stepsWeekAverage").textContent = `${formatSteps(Math.round(period.averageSteps))} pas`;
+}
+
+function renderStepsWeeklyLegend(container) {
+  const lowLabel = document.createElement("span");
+  lowLabel.textContent = "0 pas";
+  container.appendChild(lowLabel);
+
+  STEPS_HEATMAP_COLORS.forEach((color) => {
+    const swatch = document.createElement("span");
+    const fill = document.createElement("span");
+    swatch.className = "heatmap-legend-swatch";
+    fill.style.backgroundColor = color;
+    swatch.appendChild(fill);
+    container.appendChild(swatch);
+  });
+
+  const goalLabel = document.createElement("span");
+  goalLabel.textContent = `${formatSteps(OBJECTIF_PAS)}+ / jour`;
+  container.appendChild(goalLabel);
 }
 
 function setupStrideChart(series) {

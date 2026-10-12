@@ -698,10 +698,54 @@ canvas {
   outline-offset: 1px;
 }
 
+.aggregate-heatmap-cell.is-selected {
+  border-color: var(--title);
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--title);
+}
+
 .aggregate-heatmap-cell.is-missing {
   color: var(--muted);
   background: rgba(232, 209, 197, 0.22);
   border-style: dashed;
+}
+
+.steps-week-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+.steps-week-summary-label {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.steps-week-summary-values {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 0;
+}
+
+.steps-week-summary-values div {
+  display: grid;
+  gap: 4px;
+}
+
+.steps-week-summary-values dt {
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.steps-week-summary-values dd {
+  margin: 0;
+  color: var(--title);
+  font-size: clamp(1.1rem, 3vw, 1.45rem);
+  font-weight: 600;
 }
 
 .analysis-panel-head {
