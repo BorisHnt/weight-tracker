@@ -155,25 +155,22 @@ async function fetchCSV(url) {
 }
 
 function parseCSV(csvText) {
-  const lines = csvText
-    .replace(/\r/g, "")
-    .split("\n")
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Google Sheets can publish decimal commas in quoted CSV fields.
+  const rows = parseCSVRows(csvText.replace(/^\uFEFF/, ""));
 
-  if (lines.length < 2) {
+  if (rows.length < 2) {
     return [];
   }
 
-  const headers = lines[0].split(",").map((value) => value.trim().toLowerCase());
+  const headers = rows[0].map((value) => value.trim().toLowerCase());
   const dateIndex = headers.indexOf("date");
   const weightIndex = headers.indexOf("weight_kg");
   const stepsIndex = headers.indexOf("steps");
   const distanceIndex = headers.indexOf("distance_km");
   const entries = new Map();
 
-  for (let index = 1; index < lines.length; index += 1) {
-    const values = lines[index].split(",").map((value) => value.trim());
+  for (let index = 1; index < rows.length; index += 1) {
+    const values = rows[index];
     const dateRaw = values[dateIndex] || "";
 
     if (!/^\d{4}-\d{2}-\d{2}$/.test(dateRaw)) {
@@ -199,6 +196,51 @@ function parseCSV(csvText) {
   }
 
   return Array.from(entries.values()).sort((a, b) => a.date - b.date);
+}
+
+function parseCSVRows(csvText) {
+  // The header selects the separator; quoted fields may contain that separator.
+  const headerLine = csvText.split(/\r?\n/, 1)[0];
+  const separator = headerLine.includes(";") && !headerLine.includes(",") ? ";" : ",";
+  const rows = [];
+  let row = [];
+  let field = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < csvText.length; index += 1) {
+    const char = csvText[index];
+
+    if (char === '"') {
+      if (inQuotes && csvText[index + 1] === '"') {
+        field += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+    } else if (char === separator && !inQuotes) {
+      row.push(field.trim());
+      field = "";
+    } else if ((char === "\n" || char === "\r") && !inQuotes) {
+      if (char === "\r" && csvText[index + 1] === "\n") {
+        index += 1;
+      }
+      row.push(field.trim());
+      if (row.some((value) => value !== "")) {
+        rows.push(row);
+      }
+      row = [];
+      field = "";
+    } else {
+      field += char;
+    }
+  }
+
+  row.push(field.trim());
+  if (row.some((value) => value !== "")) {
+    rows.push(row);
+  }
+
+  return rows;
 }
 
 function parseOptionalNumber(value = "") {
